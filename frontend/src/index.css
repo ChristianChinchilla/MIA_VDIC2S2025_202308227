@@ -1,0 +1,82 @@
+/* Importar fuentes modernas y atractivas */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
+
+/* Reset mejorado */
+html {
+  scroll-behavior: smooth;
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  width: 100vw;
+  font-family: 'Inter', 'Segoe UI', 'Roboto', sans-serif; /* ← CAMBIO: Fuente principal más moderna */
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+  overflow-x: auto;
+  font-weight: 400; /* ← AGREGAR: Peso de fuente base */
+  letter-spacing: -0.01em; /* ← AGREGAR: Espaciado de letras más compacto */
+}
+
+/* Asegurar que el root también ocupe toda la pantalla */
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Selección de texto personalizada */
+::selection {
+  background: rgba(0, 212, 255, 0.3);
+  color: #ffffff;
+}
+
+::-moz-selection {
+  background: rgba(0, 212, 255, 0.3);
+  color: #ffffff;
+}
+
+/* Scrollbar personalizada para Firefox */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: #00d4ff #1a1a2e;
+}
+
+/* Mejoras de rendimiento */
+* {
+  will-change: auto;
+}
+
+.panel,
+.btn,
+.output-entry {
+  contain: layout style paint;
+}
+
+/* Animaciones optimizadas para rendimiento */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Variables adicionales para mejor contraste */
+@media (prefers-contrast: high) {
+  :root {
+    --text-primary: #ffffff;
+    --border-color: #ffffff;
+    --accent-blue: #66d9ff;
+  }
+}
