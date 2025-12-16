@@ -135,8 +135,8 @@ func generateCorrelativo() int {
 }
 
 func generatePartitionID(diskPath string) string {
-	// Últimos dos dígitos del carnet: 202300850 -> 50
-	carnetSuffix := "50"
+	// Últimos dos dígitos del carnet: 202308227 -> 27
+	carnetSuffix := "27"
 
 	// Verificar si es el mismo disco o uno nuevo
 	partitionNumber, exists := diskCounters[diskPath]

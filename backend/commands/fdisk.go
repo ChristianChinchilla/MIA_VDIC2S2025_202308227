@@ -6,18 +6,19 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
-func ExecuteFdisk(size int64, unit string, path string, tipo string, fit string, name string) {
+func ExecuteFdisk(size int64, unit string, diskName string, tipo string, fit string, name string) {
 	// Validar parámetros obligatorios
 	if size <= 0 {
 		fmt.Printf("Error: El parámetro -size debe ser positivo y mayor a cero.\n")
 		return
 	}
 
-	if path == "" {
-		fmt.Printf("Error: El parámetro -path es obligatorio.\n")
+	if diskName == "" {
+		fmt.Printf("Error: El parámetro -diskName es obligatorio.\n")
 		return
 	}
 
@@ -60,17 +61,20 @@ func ExecuteFdisk(size int64, unit string, path string, tipo string, fit string,
 		return
 	}
 
-	if !strings.HasSuffix(strings.ToLower(path), ".mia") {
-		path += ".mia"
+	if !strings.HasSuffix(strings.ToLower(diskName), ".mia") {
+		diskName += ".mia"
 	}
 
+	// Construir la ruta completa usando el directorio de discos
+	fullPath := filepath.Join(DisksDirectory, diskName)
+
 	// Verificar que el archivo existe
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		fmt.Printf("Error: El archivo '%s' no existe.\n", path)
+	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+		fmt.Printf("Error: El archivo '%s' no existe.\n", diskName)
 		return
 	}
 
-	file, err := os.OpenFile(path, os.O_RDWR, 0644)
+	file, err := os.OpenFile(fullPath, os.O_RDWR, 0644)
 	if err != nil {
 		fmt.Printf("Error al abrir el archivo: %v\n", err)
 		return
@@ -123,7 +127,7 @@ func ExecuteFdisk(size int64, unit string, path string, tipo string, fit string,
 			fmt.Printf("Error: %v\n", err)
 			return
 		}
-		fmt.Printf("Partición lógica '%s' creada exitosamente en '%s'.\n", name, path)
+		fmt.Printf("Partición lógica '%s' creada exitosamente en '%s'.\n", name, diskName)
 		return
 	}
 
@@ -179,7 +183,7 @@ func ExecuteFdisk(size int64, unit string, path string, tipo string, fit string,
 		tipoNombre = "Lógica"
 	}
 
-	fmt.Printf("Partición '%s' de tipo '%s' creada exitosamente en '%s'.\n", name, tipoNombre, path)
+	fmt.Printf("Partición '%s' de tipo '%s' creada exitosamente en '%s'.\n", name, tipoNombre, diskName)
 	fmt.Printf("Tamaño: %d bytes, Ajuste: %s, Posición: %d\n", sizeInBytes, fit, startPosition)
 
 	if err := file.Sync(); err != nil {

@@ -202,39 +202,33 @@ func executeCommand(command string, args []string, fullLine string) error {
         size := mkdiskCmd.Int("size", 0, "Tamaño del disco")
         unit := mkdiskCmd.String("unit", "m", "Unidad del tamaño (K o M).")
         fit := mkdiskCmd.String("fit", "ff", "Tipo de ajuste (BF, FF, WF).")
-        path := mkdiskCmd.String("path", "", "Ruta del disco a crear.")
 
         if err := mkdiskCmd.Parse(args); err != nil {
             return err
         }
 
-        if *path == "" {
-            return fmt.Errorf("el parámetro -path es obligatorio para mkdisk")
-        }
         if *size <= 0 {
             return fmt.Errorf("el parámetro -size es obligatorio y debe ser positivo")
         }
 
-        commands.ExecuteMkdisk(*size, *unit, *fit, *path)
+        commands.ExecuteMkdisk(*size, *unit, *fit)
 
     case "rmdisk":
         rmdiskCmd := flag.NewFlagSet("rmdisk", flag.ContinueOnError)
-        path := rmdiskCmd.String("path", "", "Ruta del disco a eliminar.")
-
+        diskName := rmdiskCmd.String("diskName", "", "Nombre del disco a eliminar")
         if err := rmdiskCmd.Parse(args); err != nil {
             return err
         }
-        if *path == "" {
-            return fmt.Errorf("el parámetro -path es obligatorio para rmdisk")
+        if *diskName == "" {
+            return fmt.Errorf("el parámetro -diskName es obligatorio para rmdisk")
         }
 
-        commands.ExecuteRmdisk(*path)
-
+        commands.ExecuteRmdisk(*diskName)
     case "fdisk":
         fdiskCmd := flag.NewFlagSet("fdisk", flag.ContinueOnError)
         size := fdiskCmd.Int64("size", 0, "Tamaño de la partición")
         unit := fdiskCmd.String("unit", "m", "Unidad del tamaño (K o M).")
-        path := fdiskCmd.String("path", "", "Ruta del disco donde se encuentra la partición.")
+        diskName := fdiskCmd.String("diskName", "", "Nombre del disco donde se encuentra la partición.")
         tipo := fdiskCmd.String("type", "primaria", "Tipo de partición (primaria o extendida).")
         fit := fdiskCmd.String("fit", "ff", "Tipo de ajuste (BF, FF, WF).")
         name := fdiskCmd.String("name", "", "Nombre de la partición.")
@@ -242,14 +236,14 @@ func executeCommand(command string, args []string, fullLine string) error {
         if err := fdiskCmd.Parse(args); err != nil {
             return err
         }
-        if *path == "" {
-            return fmt.Errorf("el parámetro -path es obligatorio para fdisk")
+        if *diskName == "" {
+            return fmt.Errorf("el parámetro -diskName es obligatorio para fdisk")
         }
         if *size <= 0 {
             return fmt.Errorf("el parámetro -size es obligatorio y debe ser positivo")
         }
 
-        commands.ExecuteFdisk(*size, *unit, *path, *tipo, *fit, *name)
+        commands.ExecuteFdisk(*size, *unit, *diskName, *tipo, *fit, *name)
 
     case "mount":
         mountCmd := flag.NewFlagSet("mount", flag.ContinueOnError)

@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"backend/structs"
 	"encoding/binary"
 	"fmt"
 	"math/rand"
@@ -8,23 +9,23 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	"backend/structs"
 )
 
+const DisksDirectory = "./disks"
 
-func ExecuteMkdisk(size int, unit string, fit string, path string) {
+func ExecuteMkdisk(size int, unit string, fit string) {
 	var diskSize int64
 
 	unit = strings.ToUpper(unit)
 
 	switch unit {
-		case "K":
-			diskSize = int64(size) * 1024
-		case "M", "":
-			diskSize = int64(size) * 1024 * 1024
-		default:
-			fmt.Printf("Error: Unidad invalida '%s'. Use 'K' o 'M'.\n", unit)
-			return
+	case "K":
+		diskSize = int64(size) * 1024
+	case "M", "":
+		diskSize = int64(size) * 1024 * 1024
+	default:
+		fmt.Printf("Error: Unidad invalida '%s'. Use 'K' o 'M'.\n", unit)
+		return
 	}
 
 	if diskSize <= 0 {
@@ -37,25 +38,24 @@ func ExecuteMkdisk(size int, unit string, fit string, path string) {
 	fit = strings.ToUpper(fit)
 
 	switch fit {
-		case "BF":
-			fitByte = 'b'
-		case "WF":
-			fitByte = 'w'
-		case "FF", "":
-			fitByte = 'f'
-		default:
-			fmt.Printf("Error: Ajuste '%s' no válido. Use 'BF', 'WF' o 'FF'.\n", fit)
-			return
+	case "BF":
+		fitByte = 'b'
+	case "WF":
+		fitByte = 'w'
+	case "FF", "":
+		fitByte = 'f'
+	default:
+		fmt.Printf("Error: Ajuste '%s' no válido. Use 'BF', 'WF' o 'FF'.\n", fit)
+		return
 	}
 
-	if !strings.HasSuffix(strings.ToLower(path), ".mia"){
-		path += ".mia"
-	}
+	// Generar nombre automático del disco
+	diskName := generateNextDiskName()
+	path := filepath.Join(DisksDirectory, diskName)
 
-	dir := filepath.Dir(path)
-
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		fmt.Printf("Error al crear el archivo: %v\n", err)
+	// Crear directorio si no existe
+	if err := os.MkdirAll(DisksDirectory, 0755); err != nil {
+		fmt.Printf("Error al crear el directorio: %v\n", err)
 		return
 	}
 
@@ -95,4 +95,20 @@ func ExecuteMkdisk(size int, unit string, fit string, path string) {
 
 	fmt.Printf("Disco creado exitosamente en '%s' con tamaño %d bytes, ajuste '%s' y firma %d.\n", path, diskSize, fit, diskSignature)
 
+}
+
+func generateNextDiskName() string {
+	// Buscar la siguiente letra disponible
+	for letter := 'A'; letter <= 'Z'; letter++ {
+		diskName := fmt.Sprintf("VDIC-%c.mia", letter)
+		fullPath := filepath.Join(DisksDirectory, diskName)
+
+		// Si el archivo no existe, usar este nombre
+		if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+			return diskName
+		}
+	}
+
+	fmt.Println("Error: Se han agotado los nombres de disco disponibles (VDIC-A a VDIC-Z)")
+	return "VDIC-A.mia"
 }
