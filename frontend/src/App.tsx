@@ -27,19 +27,19 @@ const App: React.FC = () => {
 
   const BACKEND_URL = 'http://localhost:8080';
 
-  // Verificar conexión con el backend al cargar
+  
   useEffect(() => {
     checkBackendConnection();
   }, []);
 
-  // Auto-scroll al final del output
+  
   useEffect(() => {
     if (outputRef.current) {
       outputRef.current.scrollTop = outputRef.current.scrollHeight;
     }
   }, [output]);
 
-  // Sincronizar scroll de números de línea con textarea
+  
   const handleTextareaScroll = () => {
     if (textareaRef.current && lineNumbersRef.current) {
       lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
@@ -51,14 +51,14 @@ const App: React.FC = () => {
       const response = await fetch(`${BACKEND_URL}/health`);
       if (response.ok) {
         setIsConnected(true);
-        addToOutput('', '🟢 Conectado al backend ExtreamFS', false);
+        addToOutput('', 'Conectado al backend ExtreamFS', false);
       } else {
         setIsConnected(false);
-        addToOutput('', '🔴 Error de conexión con el backend', true);
+        addToOutput('', 'Error de conexión con el backend', true);
       }
     } catch (error) {
       setIsConnected(false);
-      addToOutput('', '🔴 Backend no disponible. Asegúrate de que esté ejecutándose en puerto 8080', true);
+      addToOutput('', 'Backend no disponible. Asegúrate de que esté ejecutándose en puerto 8080', true);
     }
   };
 
@@ -66,7 +66,7 @@ const App: React.FC = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validar extensión
+   
     if (!file.name.endsWith('.smia')) {
       addToOutput('', 'Error: Solo se permiten archivos con extensión .smia', true);
       return;
@@ -78,7 +78,7 @@ const App: React.FC = () => {
     reader.onload = (e) => {
       const content = e.target?.result as string;
       setCommands(content);
-      addToOutput('', `✅ Archivo "${file.name}" cargado exitosamente`, false);
+      addToOutput('', `Archivo "${file.name}" cargado exitosamente`, false);
       setIsLoading(false);
     };
 
@@ -134,7 +134,7 @@ const App: React.FC = () => {
           setOutput(prev => prev.slice(0, -1));
           
           if (result.success) {
-            addToOutput(command.trim(), result.output || '✅ Comando ejecutado exitosamente', false);
+            addToOutput(command.trim(), result.output || 'Comando ejecutado exitosamente', false);
           } else {
             addToOutput(command.trim(), result.error || 'Error desconocido', true);
           }
@@ -147,7 +147,7 @@ const App: React.FC = () => {
         addToOutput(command.trim(), `Error de conexión: ${error}`, true);
       }
 
-      // Pequeña pausa entre comandos para mejor UX
+     
       await new Promise(resolve => setTimeout(resolve, 300));
     }
 
@@ -173,12 +173,9 @@ const App: React.FC = () => {
       <header className="header">
         <div className="header-content">
           <h1 className="title">
-            <span className="title-icon">⚡</span>
             ExtreamFS
-            <span className="title-version"></span>
           </h1>
           <div className="status-indicator">
-            <div className={`status-dot ${isExecuting ? 'executing' : isConnected ? 'ready' : 'error'}`}></div>
             <span className="status-text">
               {isExecuting ? 'Ejecutando...' : isConnected ? 'Conectado' : 'Desconectado'}
             </span>
@@ -197,7 +194,6 @@ const App: React.FC = () => {
         <div className="panel commands-panel">
           <div className="panel-header">
             <h2 className="panel-title">
-              <span className="panel-icon">📝</span>
               Comandos
             </h2>
             <div className="panel-actions">
@@ -208,12 +204,10 @@ const App: React.FC = () => {
               >
                 {isLoading ? (
                   <>
-                    <span className="btn-icon loading">⏳</span>
                     Cargando...
                   </>
                 ) : (
                   <>
-                    <span className="btn-icon">📁</span>
                     Cargar .smia
                   </>
                 )}
@@ -255,12 +249,10 @@ const App: React.FC = () => {
             >
               {isExecuting ? (
                 <>
-                  <span className="btn-icon executing">⚡</span>
                   Ejecutando...
                 </>
               ) : (
                 <>
-                  <span className="btn-icon">▶️</span>
                   Ejecutar
                 </>
               )}
@@ -272,7 +264,6 @@ const App: React.FC = () => {
         <div className="panel output-panel">
           <div className="panel-header">
             <h2 className="panel-title">
-              <span className="panel-icon">🖥️</span>
               Salida del Terminal
             </h2>
             <div className="panel-actions">
@@ -281,7 +272,6 @@ const App: React.FC = () => {
                 onClick={clearOutput}
                 disabled={output.length === 0}
               >
-                <span className="btn-icon">🗑️</span>
                 Limpiar
               </button>
             </div>
@@ -290,7 +280,6 @@ const App: React.FC = () => {
           <div className="output-container" ref={outputRef}>
             {output.length === 0 ? (
               <div className="output-empty">
-                <div className="empty-icon">🚀</div>
                 <p>No hay salida que mostrar</p>
                 <small>Ejecuta algunos comandos para ver los resultados aquí</small>
               </div>
@@ -316,17 +305,6 @@ const App: React.FC = () => {
           </div>
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="footer">
-        <div className="footer-content">
-          <p>ExtreamFS @ 2025 - {isConnected ? '🟢 Conectado' : '🔴 Desconectado'}</p>
-          <div className="footer-stats">
-            <span>Comandos: {commands.split('\n').filter(line => line.trim() && !line.trim().startsWith('#')).length}</span>
-            <span>Salidas: {output.length}</span>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 };

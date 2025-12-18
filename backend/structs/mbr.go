@@ -5,11 +5,11 @@ import (
 )
 
 type MBR struct {
-	Mbr_tamano int64     // Size of the disk in bytes
-	Mbr_fecha_creacion int64 // Creation date of the disk
-	Mbr_dsk_signature int64 // Disk signature
-	Dsk_fit byte
-	Mbr_partitions [4]Partition
+	Mbr_tamano         int64
+	Mbr_fecha_creacion int64
+	Mbr_dsk_signature  int64
+	Dsk_fit            byte
+	Mbr_partitions     [4]Partition
 }
 
 func NewMBR(size int64, fit byte, signature int64) MBR {

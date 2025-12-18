@@ -8,15 +8,15 @@ import (
 )
 
 func ExecuteRmdisk(diskName string) {
-	// Asegurar que el nombre tenga la extensión .mia
+	//asegurar que el nombre tenga la extension .mia
 	if !strings.HasSuffix(strings.ToLower(diskName), ".mia") {
 		diskName += ".mia"
 	}
 
-	// Construir la ruta completa usando el directorio de discos
+	//construir la ruta completa usando el directorio de discos
 	fullPath := filepath.Join(DisksDirectory, diskName)
 
-	// Verificar que el archivo existe antes de eliminarlo
+	//verificar que el archivo existe antes de eliminarlo
 	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
 		fmt.Printf("Error: El archivo '%s' no existe.\n", diskName)
 		return

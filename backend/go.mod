@@ -1,3 +1,3 @@
-module proyecto1
+module backend
 
 go 1.24.10

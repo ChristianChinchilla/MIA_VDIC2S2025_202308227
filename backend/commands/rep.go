@@ -26,7 +26,6 @@ type DiskSegment struct {
 	Status      string
 }
 
-// AGREGAR función auxiliar:
 func formatBytes(bytes int64) string {
 	if bytes <= 0 {
 		return "0 bytes"
@@ -51,13 +50,11 @@ func formatBytes(bytes int64) string {
 	return fmt.Sprintf("%.2f %s", float64(bytes)/float64(div), units[exp])
 }
 
-// calculateDiskStructure calcula la estructura del disco para visualización
 func calculateDiskStructure(mbr structs.MBR, totalSize int64) []DiskSegment {
 	var segments []DiskSegment
 	currentPos := int64(0)
 
-	// MBR (primer sector, 512 bytes típicamente)
-	mbrSize := int64(512) // Tamaño estándar del MBR
+	mbrSize := int64(512)
 	segments = append(segments, DiskSegment{
 		Type:        "MBR",
 		Name:        "Master Boot Record",
@@ -75,7 +72,6 @@ func calculateDiskStructure(mbr structs.MBR, totalSize int64) []DiskSegment {
 	})
 	currentPos = mbrSize
 
-	// Obtener particiones ordenadas por posición de inicio
 	var partitions []structs.Partition
 	for _, part := range mbr.Mbr_partitions {
 		if part.Part_status != 0 && part.Part_start > 0 && part.Part_s > 0 {
@@ -83,7 +79,6 @@ func calculateDiskStructure(mbr structs.MBR, totalSize int64) []DiskSegment {
 		}
 	}
 
-	// Ordenar particiones por posición de inicio
 	for i := 0; i < len(partitions)-1; i++ {
 		for j := i + 1; j < len(partitions); j++ {
 			if partitions[i].Part_start > partitions[j].Part_start {
@@ -92,9 +87,8 @@ func calculateDiskStructure(mbr structs.MBR, totalSize int64) []DiskSegment {
 		}
 	}
 
-	// Procesar cada partición
 	for _, partition := range partitions {
-		// Espacio libre antes de la partición
+
 		if partition.Part_start > currentPos {
 			freeSize := partition.Part_start - currentPos
 			segments = append(segments, DiskSegment{
@@ -114,7 +108,7 @@ func calculateDiskStructure(mbr structs.MBR, totalSize int64) []DiskSegment {
 			})
 		}
 
-		// Partición actual
+		//partición actual
 		name := strings.TrimSpace(string(partition.Part_name[:]))
 		if name == "" {
 			name = "Sin nombre"
@@ -154,16 +148,13 @@ func calculateDiskStructure(mbr structs.MBR, totalSize int64) []DiskSegment {
 			Status:      status,
 		})
 
-		// Si es partición extendida, agregar particiones lógicas
+		//si es particion extendida, agregar particiones logicas
 		if partition.Part_type == 'E' || partition.Part_type == 'e' {
-			// TODO: Implementar lectura de EBRs para particiones lógicas
-			// Por ahora, las particiones lógicas se mostrarán como parte de la extendida
 		}
 
 		currentPos = partition.Part_start + partition.Part_s
 	}
 
-	// Espacio libre al final
 	if currentPos < totalSize {
 		freeSize := totalSize - currentPos
 		segments = append(segments, DiskSegment{
@@ -186,23 +177,21 @@ func calculateDiskStructure(mbr structs.MBR, totalSize int64) []DiskSegment {
 	return segments
 }
 
-// ExecuteRep genera reportes con Graphviz
 func ExecuteRep(name string, path string, id string, pathFileLs string) {
-	// Validar parámetros obligatorios
+
 	if name == "" {
-		fmt.Println("❌ Error: El parámetro -name es obligatorio")
+		fmt.Println("Error: El parámetro -name es obligatorio")
 		return
 	}
 	if path == "" {
-		fmt.Println("❌ Error: El parámetro -path es obligatorio")
+		fmt.Println("Error: El parámetro -path es obligatorio")
 		return
 	}
 	if id == "" {
-		fmt.Println("❌ Error: El parámetro -id es obligatorio")
+		fmt.Println("Error: El parámetro -id es obligatorio")
 		return
 	}
 
-	// Validar tipos de reporte válidos
 	validReports := []string{"mbr", "disk", "inode", "block", "bm_inode", "bm_block", "tree", "sb", "file", "ls"}
 	name = strings.ToLower(name)
 	isValid := false
@@ -214,25 +203,22 @@ func ExecuteRep(name string, path string, id string, pathFileLs string) {
 	}
 
 	if !isValid {
-		fmt.Printf("❌ Error: Tipo de reporte '%s' no válido. Tipos válidos: %s\n", name, strings.Join(validReports, ", "))
+		fmt.Printf("Error: Tipo de reporte '%s' no válido. Tipos válidos: %s\n", name, strings.Join(validReports, ", "))
 		return
 	}
 
-	// Obtener información de la partición montada
 	mountedPartition := GetMountedPartition(id)
 	if mountedPartition == nil {
-		fmt.Printf("❌ Error: No se encontró una partición montada con ID '%s'\n", id)
+		fmt.Printf("Error: No se encontró una partición montada con ID '%s'\n", id)
 		return
 	}
 
-	// Crear directorio si no existe
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		fmt.Printf("❌ Error al crear directorio: %v\n", err)
+		fmt.Printf("Error al crear directorio: %v\n", err)
 		return
 	}
 
-	// Generar el reporte según el tipo
 	switch name {
 	case "mbr":
 		generateMBRReport(mountedPartition.Path, path)
@@ -257,19 +243,18 @@ func ExecuteRep(name string, path string, id string, pathFileLs string) {
 	}
 }
 
-// generateMBRReport genera el reporte del MBR
+// genera el reporte del MBR
 func generateMBRReport(diskPath string, outputPath string) {
 	file, err := os.Open(diskPath)
 	if err != nil {
-		fmt.Printf("❌ Error al abrir el archivo: %v\n", err)
+		fmt.Printf("Error al abrir el archivo: %v\n", err)
 		return
 	}
 	defer file.Close()
 
-	// Leer MBR con orden de bytes mixto
 	mbr, err := readMBRMixed(file)
 	if err != nil {
-		fmt.Printf("❌ Error al leer el MBR: %v\n", err)
+		fmt.Printf("Error al leer el MBR: %v\n", err)
 		return
 	}
 
@@ -277,7 +262,6 @@ func generateMBRReport(diskPath string, outputPath string) {
 	generateHTMLReport(htmlContent, outputPath, "MBR")
 }
 
-// AGREGAR función nueva para lectura mixta:
 func readMBRMixed(file *os.File) (structs.MBR, error) {
 	var mbr structs.MBR
 
@@ -288,18 +272,15 @@ func readMBRMixed(file *os.File) (structs.MBR, error) {
 		return mbr, err
 	}
 
-	// Leer campos del MBR principal con LittleEndian
 	mbr.Mbr_tamano = int64(binary.LittleEndian.Uint64(buffer[0:8]))
 	mbr.Mbr_fecha_creacion = int64(binary.LittleEndian.Uint64(buffer[8:16]))
 	mbr.Mbr_dsk_signature = int64(binary.LittleEndian.Uint64(buffer[16:24]))
 	mbr.Dsk_fit = buffer[24]
 
-	// Leer particiones con LittleEndian (como estaba funcionando)
 	file.Seek(0, 0)
 	var mbrTemp structs.MBR
 	binary.Read(file, binary.LittleEndian, &mbrTemp)
 
-	// Copiar solo las particiones que funcionaban bien
 	mbr.Mbr_partitions = mbrTemp.Mbr_partitions
 
 	return mbr, nil
@@ -308,23 +289,21 @@ func readMBRMixed(file *os.File) (structs.MBR, error) {
 func readSuperBlockMixed(file *os.File, partitionStart int64) (structs.SuperBloque, error) {
 	var superblock structs.SuperBloque
 
-	// Posicionarse en el inicio de la partición
 	file.Seek(partitionStart, 0)
 
-	// Leer buffer del superbloque (1024 bytes para estar seguros)
+	//leer buffer del superbloque
 	buffer := make([]byte, 1024)
 	_, err := file.Read(buffer)
 	if err != nil {
 		return superblock, err
 	}
 
-	// Primero intentar con LittleEndian (método original)
 	file.Seek(partitionStart, 0)
 	if err := binary.Read(file, binary.LittleEndian, &superblock); err != nil {
 		return superblock, err
 	}
 
-	// Validaciones de consistencia
+	//validaciones de consistencia
 	if superblock.S_inodes_count <= 0 || superblock.S_inodes_count > 1000000 {
 		return superblock, fmt.Errorf("número de inodos inválido: %d", superblock.S_inodes_count)
 	}
@@ -337,34 +316,31 @@ func readSuperBlockMixed(file *os.File, partitionStart int64) (structs.SuperBloq
 		return superblock, fmt.Errorf("tamaño de bloque inválido: %d", superblock.S_block_s)
 	}
 
-	// Verificar que los contadores sean consistentes
+	//verificar que los contadores sean consistentes
 	if superblock.S_free_inodes_count > superblock.S_inodes_count {
-		fmt.Printf("⚠️  Advertencia: inodos libres (%d) > total (%d)\n",
+		fmt.Printf("Advertencia: inodos libres (%d) > total (%d)\n",
 			superblock.S_free_inodes_count, superblock.S_inodes_count)
 	}
 
 	return superblock, nil
 }
 
-// generateDiskReport genera el reporte del disco
 func generateDiskReport(diskPath string, outputPath string) {
 	file, err := os.Open(diskPath)
 	if err != nil {
-		fmt.Printf("❌ Error al abrir el archivo: %v\n", err)
+		fmt.Printf("Error al abrir el archivo: %v\n", err)
 		return
 	}
 	defer file.Close()
 
 	fileInfo, err := file.Stat()
 	if err != nil {
-		fmt.Printf("❌ Error al obtener información del archivo: %v\n", err)
+		fmt.Printf("Error al obtener información del archivo: %v\n", err)
 		return
 	}
-
-	// Usar la misma función mixta que en MBR
 	mbr, err := readMBRMixed(file)
 	if err != nil {
-		fmt.Printf("❌ Error al leer el MBR: %v\n", err)
+		fmt.Printf(" Error al leer el MBR: %v\n", err)
 		return
 	}
 
@@ -372,26 +348,23 @@ func generateDiskReport(diskPath string, outputPath string) {
 	generateHTMLReport(htmlContent, outputPath, "DISK")
 }
 
-// generateSuperBlockReport genera el reporte del superbloque
 func generateSuperBlockReport(partition *MountedPartition, outputPath string) {
 	file, err := os.Open(partition.Path)
 	if err != nil {
-		fmt.Printf("❌ Error al abrir el archivo: %v\n", err)
+		fmt.Printf("Error al abrir el archivo: %v\n", err)
 		return
 	}
 	defer file.Close()
 
-	// Leer MBR para encontrar la partición
 	var mbr structs.MBR
 	if err := binary.Read(file, binary.LittleEndian, &mbr); err != nil {
-		fmt.Printf("❌ Error al leer el MBR: %v\n", err)
+		fmt.Printf("Error al leer el MBR: %v\n", err)
 		return
 	}
 
 	var partitionStart int64
 	found := false
 
-	// Normalizar el nombre de la partición montada
 	mountedName := strings.TrimSpace(strings.TrimRight(partition.Name, "\x00"))
 
 	for _, part := range mbr.Mbr_partitions {
@@ -407,14 +380,14 @@ func generateSuperBlockReport(partition *MountedPartition, outputPath string) {
 	}
 
 	if !found {
-		fmt.Printf("❌ Error: No se encontró la partición '%s'\n", mountedName)
+		fmt.Printf("Error: No se encontró la partición '%s'\n", mountedName)
 		return
 	}
 
 	// Leer superbloque
 	superblock, err := readSuperBlockMixed(file, partitionStart)
 	if err != nil {
-		fmt.Printf("❌ Error al leer el superbloque: %v\n", err)
+		fmt.Printf(" Error al leer el superbloque: %v\n", err)
 		return
 	}
 
@@ -422,32 +395,30 @@ func generateSuperBlockReport(partition *MountedPartition, outputPath string) {
 	generateHTMLReport(htmlContent, outputPath, "SUPERBLOCK")
 }
 
-// generateInodeReport genera el reporte de inodos
 func generateInodeReport(partition *MountedPartition, outputPath string) {
 
 	file, err := os.Open(partition.Path)
 	if err != nil {
-		fmt.Printf("❌ Error al abrir el archivo: %v\n", err)
+		fmt.Printf("Error al abrir el archivo: %v\n", err)
 		return
 	}
 	defer file.Close()
 
-	// Leer MBR para encontrar la partición
+	//leer MBR para encontrar la partición
 	var mbr structs.MBR
 	if err := binary.Read(file, binary.LittleEndian, &mbr); err != nil {
-		fmt.Printf("❌ Error al leer el MBR: %v\n", err)
+		fmt.Printf(" Error al leer el MBR: %v\n", err)
 		return
 	}
 
 	var partitionStart int64
 	found := false
 
-	// Normalizar el nombre de la partición montada (quitar espacios y null bytes)
 	mountedName := strings.TrimSpace(strings.TrimRight(partition.Name, "\x00"))
 
 	for _, part := range mbr.Mbr_partitions {
 		if part.Part_status != '0' && part.Part_status != 0 {
-			// Normalizar el nombre de la partición del MBR
+
 			partitionName := strings.TrimSpace(strings.TrimRight(string(part.Part_name[:]), "\x00"))
 
 			if partitionName == mountedName {
@@ -468,21 +439,18 @@ func generateInodeReport(partition *MountedPartition, outputPath string) {
 		}
 		return
 	}
-
-	// Leer superbloque
 	superblock, err := readSuperBlockMixed(file, partitionStart)
 	if err != nil {
-		fmt.Printf("❌ Error al leer el superbloque: %v\n", err)
+		fmt.Printf("Error al leer el superbloque: %v\n", err)
 		return
 	}
 
-	// Validar valores del superbloque
 	if superblock.S_inodes_count <= 0 || superblock.S_inodes_count > 1000000 {
 
-		// Intentar lectura estándar del superbloque
+		//intentar lectura estándar del superbloque
 		file.Seek(partitionStart, 0)
 		if err := binary.Read(file, binary.LittleEndian, &superblock); err != nil {
-			fmt.Printf("❌ Error al leer superbloque con LittleEndian: %v\n", err)
+			fmt.Printf("Error al leer superbloque con LittleEndian: %v\n", err)
 			return
 		}
 	}
@@ -491,26 +459,23 @@ func generateInodeReport(partition *MountedPartition, outputPath string) {
 	generateHTMLReport(htmlContent, outputPath, "INODE")
 }
 
-// generateBlockReport genera el reporte de bloques
 func generateBlockReport(partition *MountedPartition, outputPath string) {
 	file, err := os.Open(partition.Path)
 	if err != nil {
-		fmt.Printf("❌ Error al abrir el archivo: %v\n", err)
+		fmt.Printf("Error al abrir el archivo: %v\n", err)
 		return
 	}
 	defer file.Close()
 
-	// Leer MBR para encontrar la partición
 	var mbr structs.MBR
 	if err := binary.Read(file, binary.LittleEndian, &mbr); err != nil {
-		fmt.Printf("❌ Error al leer el MBR: %v\n", err)
+		fmt.Printf("Error al leer el MBR: %v\n", err)
 		return
 	}
 
 	var partitionStart int64
 	found := false
 
-	// Normalizar el nombre de la partición montada
 	mountedName := strings.TrimSpace(strings.TrimRight(partition.Name, "\x00"))
 
 	for _, part := range mbr.Mbr_partitions {
@@ -526,14 +491,14 @@ func generateBlockReport(partition *MountedPartition, outputPath string) {
 	}
 
 	if !found {
-		fmt.Printf("❌ Error: No se encontró la partición '%s'\n", mountedName)
+		fmt.Printf("Error: No se encontró la partición '%s'\n", mountedName)
 		return
 	}
 
-	// Leer superbloque
+	//leer superbloque
 	superblock, err := readSuperBlockMixed(file, partitionStart)
 	if err != nil {
-		fmt.Printf("❌ Error al leer el superbloque: %v\n", err)
+		fmt.Printf("Error al leer el superbloque: %v\n", err)
 		return
 	}
 
@@ -541,26 +506,25 @@ func generateBlockReport(partition *MountedPartition, outputPath string) {
 	generateHTMLReport(htmlContent, outputPath, "BLOCK")
 }
 
-// generateBitmapInodeReport genera el reporte del bitmap de inodos
+// genera el reporte del bitmap de inodos
 func generateBitmapInodeReport(partition *MountedPartition, outputPath string) {
 	file, err := os.Open(partition.Path)
 	if err != nil {
-		fmt.Printf("❌ Error al abrir el archivo: %v\n", err)
+		fmt.Printf("Error al abrir el archivo: %v\n", err)
 		return
 	}
 	defer file.Close()
 
-	// Leer MBR para encontrar la partición
+	//leer MBR para encontrar la partición
 	var mbr structs.MBR
 	if err := binary.Read(file, binary.LittleEndian, &mbr); err != nil {
-		fmt.Printf("❌ Error al leer el MBR: %v\n", err)
+		fmt.Printf("Error al leer el MBR: %v\n", err)
 		return
 	}
 
 	var partitionStart int64
 	found := false
 
-	// Normalizar el nombre de la partición montada
 	mountedName := strings.TrimSpace(strings.TrimRight(partition.Name, "\x00"))
 
 	for _, part := range mbr.Mbr_partitions {
@@ -576,54 +540,48 @@ func generateBitmapInodeReport(partition *MountedPartition, outputPath string) {
 	}
 
 	if !found {
-		fmt.Printf("❌ Error: No se encontró la partición '%s'\n", mountedName)
+		fmt.Printf("Error: No se encontró la partición '%s'\n", mountedName)
 		return
 	}
 
-	// Leer superbloque
 	superblock, err := readSuperBlockMixed(file, partitionStart)
 	if err != nil {
-		fmt.Printf("❌ Error al leer el superbloque: %v\n", err)
+		fmt.Printf("Error al leer el superbloque: %v\n", err)
 		return
 	}
 
-	// Generar contenido del bitmap
 	txtContent := generateBitmapInodeTxt(file, superblock, partition.Name)
 
-	// Asegurar extensión .txt
 	if !strings.HasSuffix(strings.ToLower(outputPath), ".txt") {
 		outputPath = strings.TrimSuffix(outputPath, filepath.Ext(outputPath)) + ".txt"
 	}
 
-	// Escribir archivo de texto
+	//escribir archivo de texto
 	if err := os.WriteFile(outputPath, []byte(txtContent), 0644); err != nil {
-		fmt.Printf("❌ Error al escribir archivo TXT: %v\n", err)
+		fmt.Printf("Error al escribir archivo TXT: %v\n", err)
 		return
 	}
 
-	fmt.Printf("✅ Reporte BITMAP_INODE generado: %s\n", outputPath)
+	fmt.Printf("Reporte BITMAP_INODE generado: %s\n", outputPath)
 }
 
 // generateBitmapBlockReport genera el reporte del bitmap de bloques
 func generateBitmapBlockReport(partition *MountedPartition, outputPath string) {
 	file, err := os.Open(partition.Path)
 	if err != nil {
-		fmt.Printf("❌ Error al abrir el archivo: %v\n", err)
+		fmt.Printf("Error al abrir el archivo: %v\n", err)
 		return
 	}
 	defer file.Close()
-
-	// Leer MBR para encontrar la partición
 	var mbr structs.MBR
 	if err := binary.Read(file, binary.LittleEndian, &mbr); err != nil {
-		fmt.Printf("❌ Error al leer el MBR: %v\n", err)
+		fmt.Printf("Error al leer el MBR: %v\n", err)
 		return
 	}
 
 	var partitionStart int64
 	found := false
 
-	// Normalizar el nombre de la partición montada
 	mountedName := strings.TrimSpace(strings.TrimRight(partition.Name, "\x00"))
 
 	for _, part := range mbr.Mbr_partitions {
@@ -639,54 +597,49 @@ func generateBitmapBlockReport(partition *MountedPartition, outputPath string) {
 	}
 
 	if !found {
-		fmt.Printf("❌ Error: No se encontró la partición '%s'\n", mountedName)
+		fmt.Printf("Error: No se encontró la partición '%s'\n", mountedName)
 		return
 	}
 
-	// Leer superbloque
+	//leer superbloque
 	superblock, err := readSuperBlockMixed(file, partitionStart)
 	if err != nil {
-		fmt.Printf("❌ Error al leer el superbloque: %v\n", err)
+		fmt.Printf(" Error al leer el superbloque: %v\n", err)
 		return
 	}
 
-	// Generar contenido del bitmap de bloques
 	txtContent := generateBitmapBlockTxt(file, superblock, partition.Name)
 
-	// Asegurar extensión .txt
 	if !strings.HasSuffix(strings.ToLower(outputPath), ".txt") {
 		outputPath = strings.TrimSuffix(outputPath, filepath.Ext(outputPath)) + ".txt"
 	}
 
-	// Escribir archivo de texto
 	if err := os.WriteFile(outputPath, []byte(txtContent), 0644); err != nil {
-		fmt.Printf("❌ Error al escribir archivo TXT: %v\n", err)
+		fmt.Printf(" Error al escribir archivo TXT: %v\n", err)
 		return
 	}
 
-	fmt.Printf("✅ Reporte BITMAP_BLOCK generado: %s\n", outputPath)
+	fmt.Printf("Reporte BITMAP_BLOCK generado: %s\n", outputPath)
 }
 
-// generateTreeReport genera el reporte del árbol del sistema de archivos
 func generateTreeReport(partition *MountedPartition, outputPath string) {
 	file, err := os.Open(partition.Path)
 	if err != nil {
-		fmt.Printf("❌ Error al abrir el archivo: %v\n", err)
+		fmt.Printf("Error al abrir el archivo: %v\n", err)
 		return
 	}
 	defer file.Close()
 
-	// Leer MBR para encontrar la partición
 	var mbr structs.MBR
 	if err := binary.Read(file, binary.LittleEndian, &mbr); err != nil {
-		fmt.Printf("❌ Error al leer el MBR: %v\n", err)
+		fmt.Printf("Error al leer el MBR: %v\n", err)
 		return
 	}
 
 	var partitionStart int64
 	found := false
 
-	// Normalizar el nombre de la partición montada
+	//normalizar el nombre de la particion montada
 	mountedName := strings.TrimSpace(strings.TrimRight(partition.Name, "\x00"))
 
 	for _, part := range mbr.Mbr_partitions {
@@ -702,14 +655,14 @@ func generateTreeReport(partition *MountedPartition, outputPath string) {
 	}
 
 	if !found {
-		fmt.Printf("❌ Error: No se encontró la partición '%s'\n", mountedName)
+		fmt.Printf("Error: No se encontró la partición '%s'\n", mountedName)
 		return
 	}
 
-	// Leer superbloque
+	//leer superbloque
 	superblock, err := readSuperBlockMixed(file, partitionStart)
 	if err != nil {
-		fmt.Printf("❌ Error al leer el superbloque: %v\n", err)
+		fmt.Printf("Error al leer el superbloque: %v\n", err)
 		return
 	}
 
@@ -717,31 +670,28 @@ func generateTreeReport(partition *MountedPartition, outputPath string) {
 	generateHTMLReport(htmlContent, outputPath, "TREE")
 }
 
-// generateFileReport genera el reporte de un archivo específico
 func generateFileReport(partition *MountedPartition, outputPath string, filePath string) {
 	if filePath == "" {
-		fmt.Println("❌ Error: El parámetro -path_file_ls es obligatorio para el reporte 'file'")
+		fmt.Println("Error: El parámetro -path_file_ls es obligatorio para el reporte 'file'")
 		return
 	}
 
 	file, err := os.Open(partition.Path)
 	if err != nil {
-		fmt.Printf("❌ Error al abrir el archivo: %v\n", err)
+		fmt.Printf("Error al abrir el archivo: %v\n", err)
 		return
 	}
 	defer file.Close()
 
-	// Leer MBR para encontrar la partición
 	var mbr structs.MBR
 	if err := binary.Read(file, binary.LittleEndian, &mbr); err != nil {
-		fmt.Printf("❌ Error al leer el MBR: %v\n", err)
+		fmt.Printf("Error al leer el MBR: %v\n", err)
 		return
 	}
 
 	var partitionStart int64
 	found := false
 
-	// Normalizar el nombre de la partición montada
 	mountedName := strings.TrimSpace(strings.TrimRight(partition.Name, "\x00"))
 
 	for _, part := range mbr.Mbr_partitions {
@@ -757,58 +707,55 @@ func generateFileReport(partition *MountedPartition, outputPath string, filePath
 	}
 
 	if !found {
-		fmt.Printf("❌ Error: No se encontró la partición '%s'\n", mountedName)
+		fmt.Printf("Error: No se encontró la partición '%s'\n", mountedName)
 		return
 	}
 
-	// Leer superbloque
+	//leer superbloque
 	superblock, err := readSuperBlockMixed(file, partitionStart)
 	if err != nil {
-		fmt.Printf("❌ Error al leer el superbloque: %v\n", err)
+		fmt.Printf("Error al leer el superbloque: %v\n", err)
 		return
 	}
 
-	// Generar contenido del archivo
+	//generar contenido del archivo
 	txtContent := generateFileTxt(file, superblock, filePath, partition.Name)
 
-	// Asegurar extensión .txt
+	//asegurar extension .txt
 	if !strings.HasSuffix(strings.ToLower(outputPath), ".txt") {
 		outputPath = strings.TrimSuffix(outputPath, filepath.Ext(outputPath)) + ".txt"
 	}
 
-	// Escribir archivo de texto
+	//escribir archivo de texto
 	if err := os.WriteFile(outputPath, []byte(txtContent), 0644); err != nil {
-		fmt.Printf("❌ Error al escribir archivo TXT: %v\n", err)
+		fmt.Printf("Error al escribir archivo TXT: %v\n", err)
 		return
 	}
 
-	fmt.Printf("✅ Reporte FILE generado: %s\n", outputPath)
+	fmt.Printf(" Reporte FILE generado: %s\n", outputPath)
 }
 
-// generateLsReport genera el reporte de listado de directorio
 func generateLsReport(partition *MountedPartition, outputPath string, dirPath string) {
 	if dirPath == "" {
-		dirPath = "/" // Directorio raíz por defecto
+		dirPath = "/"
 	}
 
 	file, err := os.Open(partition.Path)
 	if err != nil {
-		fmt.Printf("❌ Error al abrir el archivo: %v\n", err)
+		fmt.Printf("Error al abrir el archivo: %v\n", err)
 		return
 	}
 	defer file.Close()
 
-	// Leer MBR para encontrar la partición
 	var mbr structs.MBR
 	if err := binary.Read(file, binary.LittleEndian, &mbr); err != nil {
-		fmt.Printf("❌ Error al leer el MBR: %v\n", err)
+		fmt.Printf("Error al leer el MBR: %v\n", err)
 		return
 	}
 
 	var partitionStart int64
 	found := false
 
-	// Normalizar el nombre de la partición montada
 	mountedName := strings.TrimSpace(strings.TrimRight(partition.Name, "\x00"))
 
 	for _, part := range mbr.Mbr_partitions {
@@ -824,14 +771,14 @@ func generateLsReport(partition *MountedPartition, outputPath string, dirPath st
 	}
 
 	if !found {
-		fmt.Printf("❌ Error: No se encontró la partición '%s'\n", mountedName)
+		fmt.Printf("Error: No se encontró la partición '%s'\n", mountedName)
 		return
 	}
 
 	// Leer superbloque
 	superblock, err := readSuperBlockMixed(file, partitionStart)
 	if err != nil {
-		fmt.Printf("❌ Error al leer el superbloque: %v\n", err)
+		fmt.Printf("Error al leer el superbloque: %v\n", err)
 		return
 	}
 
@@ -839,13 +786,12 @@ func generateLsReport(partition *MountedPartition, outputPath string, dirPath st
 	generateHTMLReport(htmlContent, outputPath, "LS")
 }
 
-// readEBRs lee todos los EBRs de una partición extendida
 func readEBRs(diskPath string, extendedPartition structs.Partition) []structs.EBR {
 	var ebrs []structs.EBR
 
 	file, err := os.Open(diskPath)
 	if err != nil {
-		fmt.Printf("❌ Error al abrir disco para leer EBRs: %v\n", err)
+		fmt.Printf("Error al abrir disco para leer EBRs: %v\n", err)
 		return ebrs
 	}
 	defer file.Close()
@@ -853,26 +799,23 @@ func readEBRs(diskPath string, extendedPartition structs.Partition) []structs.EB
 	currentPos := extendedPartition.Part_start
 
 	for currentPos != -1 && currentPos != 0 {
-		// Leer EBR en la posición actual
+
 		file.Seek(currentPos, 0)
 
 		var ebr structs.EBR
 		if err := binary.Read(file, binary.LittleEndian, &ebr); err != nil {
-			fmt.Printf("❌ Error al leer EBR en posición %d: %v\n", currentPos, err)
+			fmt.Printf("Error al leer EBR en posición %d: %v\n", currentPos, err)
 			break
 		}
 
-		// Si el EBR tiene una partición válida, agregarlo
 		if ebr.PartMount != 0 {
 			ebrs = append(ebrs, ebr)
 		}
 
-		// Avanzar al siguiente EBR
 		currentPos = ebr.PartNext
 
-		// Prevenir bucles infinitos
 		if len(ebrs) > 10 {
-			fmt.Println("⚠️  Demasiados EBRs, posible bucle infinito")
+			fmt.Println(" Demasiados EBRs, posible bucle infinito")
 			break
 		}
 	}
@@ -880,24 +823,23 @@ func readEBRs(diskPath string, extendedPartition structs.Partition) []structs.EB
 	return ebrs
 }
 
-// generateHTMLReport genera el archivo HTML con estilos modernos
+// genera el archivo HTML con estilos modernos
 func generateHTMLReport(htmlContent string, outputPath string, reportType string) {
 	// Asegurar extensión .html
 	if !strings.HasSuffix(strings.ToLower(outputPath), ".html") {
 		outputPath = strings.TrimSuffix(outputPath, filepath.Ext(outputPath)) + ".html"
 	}
 
-	// Escribir contenido HTML
+	//escribir contenido HTML
 	if err := os.WriteFile(outputPath, []byte(htmlContent), 0644); err != nil {
-		fmt.Printf("❌ Error al escribir archivo HTML: %v\n", err)
+		fmt.Printf("Error al escribir archivo HTML: %v\n", err)
 		return
 	}
 
-	fmt.Printf("✅ Reporte %s generado: %s\n", reportType, outputPath)
-	fmt.Printf("🌐 Abre en tu navegador: file://%s\n", outputPath)
+	fmt.Printf("Reporte %s generado: %s\n", reportType, outputPath)
+	fmt.Printf("Abre en tu navegador: file://%s\n", outputPath)
 }
 
-// generateMBRHTML genera el reporte MBR en HTML moderno
 func generateMBRHTML(mbr structs.MBR, diskPath string) string {
 	var html strings.Builder
 
@@ -1112,7 +1054,6 @@ func generateMBRHTML(mbr structs.MBR, diskPath string) string {
             <p class="subtitle">Master Boot Record - ExtreamFS</p>
         </div>`)
 
-	// Información del MBR
 	html.WriteString(`
         <div class="card animation-fade">
             <h2 class="card-title">
@@ -1121,7 +1062,6 @@ func generateMBRHTML(mbr structs.MBR, diskPath string) string {
             </h2>
             <div class="info-grid">`)
 
-	// Mostrar tamaño del disco sin validación restrictiva
 	mbrSize := mbr.Mbr_tamano
 	var sizeDisplay string
 	if mbrSize > 0 {
@@ -1136,9 +1076,8 @@ func generateMBRHTML(mbr structs.MBR, diskPath string) string {
                         <span class="info-value">%s</span>
                     </div>`, sizeDisplay))
 
-	// Fecha de creación con validación más flexible
 	var fechaDisplay string
-	if mbr.Mbr_fecha_creacion > 0 && mbr.Mbr_fecha_creacion < 4102444800 { // Hasta año 2100
+	if mbr.Mbr_fecha_creacion > 0 && mbr.Mbr_fecha_creacion < 4102444800 {
 		fecha := time.Unix(mbr.Mbr_fecha_creacion, 0).Format("2006-01-02 15:04:05")
 		fechaDisplay = fecha
 	} else {
@@ -1179,7 +1118,6 @@ func generateMBRHTML(mbr structs.MBR, diskPath string) string {
             </div>
         </div>`)
 
-	// Particiones Primarias y Extendidas
 	extendedPartition := -1
 	partitionCount := 0
 
@@ -1192,11 +1130,11 @@ func generateMBRHTML(mbr structs.MBR, diskPath string) string {
 			}
 
 			partitionClass := "partition-primary"
-			partitionType := "🟢 Primaria"
+			partitionType := "Primaria"
 
 			if partition.Part_type == 'E' || partition.Part_type == 'e' {
 				partitionClass = "partition-extended"
-				partitionType = "🟡 Extendida"
+				partitionType = "Extendida"
 				extendedPartition = i
 			}
 
@@ -1219,7 +1157,6 @@ func generateMBRHTML(mbr structs.MBR, diskPath string) string {
 			html.WriteString(fmt.Sprintf(`
         <div class="card %s animation-fade">
             <h2 class="card-title">
-                <span class="icon">💾</span>
                 %s - %s
             </h2>
             <div class="info-grid">
@@ -1253,7 +1190,6 @@ func generateMBRHTML(mbr structs.MBR, diskPath string) string {
 		}
 	}
 
-	// EBRs si hay partición extendida
 	if extendedPartition >= 0 {
 		ebrs := readEBRs(diskPath, mbr.Mbr_partitions[extendedPartition])
 
@@ -1330,9 +1266,9 @@ func generateMBRHTML(mbr structs.MBR, diskPath string) string {
 	// Footer
 	html.WriteString(fmt.Sprintf(`
         <div class="footer">
-            <p>📊 Reporte generado por <strong>ExtreamFS </strong></p>
-            <p>🕒 %s | 💿 %s</p>
-            <p>📁 Total de particiones encontradas: <strong>%d</strong></p>
+            <p> Reporte generado por <strong>ExtreamFS </strong></p>
+            <p> %s |  %s</p>
+            <p>Total de particiones encontradas: <strong>%d</strong></p>
         </div>
     </div>
     
@@ -1638,20 +1574,17 @@ func generateDiskHTML(mbr structs.MBR, diskPath string, fileInfo os.FileInfo) st
 <body>
     <div class="container">
         <div class="header">
-            <h1>💽 Reporte DISK</h1>
+            <h1>Reporte DISK</h1>
             <p class="subtitle">Estructura del Disco - ExtreamFS </p>
         </div>`)
 
-	// Calcular estructura del disco
 	diskStructure := calculateDiskStructure(mbr, fileInfo.Size())
 
-	// Mostrar visualización del disco
 	html.WriteString(`
         <div class="disk-container animation-slide">
             <h2 class="disk-title">📊 ` + filepath.Base(diskPath) + `</h2>
             <div class="disk-visual">`)
 
-	// Generar segmentos visuales
 	for _, segment := range diskStructure {
 		html.WriteString(fmt.Sprintf(`
                 <div class="disk-segment %s" style="flex: %f;" title="%s">
@@ -1665,7 +1598,6 @@ func generateDiskHTML(mbr structs.MBR, diskPath string, fileInfo os.FileInfo) st
 	html.WriteString(`
             </div>`)
 
-	// Leyenda
 	html.WriteString(`
             <div class="legend">`)
 
@@ -1684,7 +1616,6 @@ func generateDiskHTML(mbr structs.MBR, diskPath string, fileInfo os.FileInfo) st
 	html.WriteString(`
             </div>`)
 
-	// Tabla de detalles
 	html.WriteString(`
             <table class="details-table">
                 <thead>
@@ -1699,7 +1630,6 @@ func generateDiskHTML(mbr structs.MBR, diskPath string, fileInfo os.FileInfo) st
                 </thead>
                 <tbody>`)
 
-	// Llenar tabla con detalles
 	for _, segment := range diskStructure {
 		html.WriteString(fmt.Sprintf(`
                     <tr>
@@ -1719,7 +1649,7 @@ func generateDiskHTML(mbr structs.MBR, diskPath string, fileInfo os.FileInfo) st
             </table>
         </div>`)
 
-	// Footer
+	//Footer
 	totalPercentage := 0.0
 	for _, segment := range diskStructure {
 		totalPercentage += segment.Percentage
@@ -1727,9 +1657,9 @@ func generateDiskHTML(mbr structs.MBR, diskPath string, fileInfo os.FileInfo) st
 
 	html.WriteString(fmt.Sprintf(`
         <div class="footer">
-            <p>💽 Reporte generado por <strong>ExtreamFS </strong></p>
-            <p>🕒 %s | 📁 %s</p>
-            <p>📊 Total verificado: <strong>%.1f%%</strong> | 💾 Tamaño total: <strong>%s</strong></p>
+            <p> Reporte generado por <strong>ExtreamFS </strong></p>
+            <p> %s |  %s</p>
+            <p>Total verificado: <strong>%.1f%%</strong> |  Tamaño total: <strong>%s</strong></p>
         </div>
     </div>
     
@@ -2020,46 +1950,41 @@ func generateInodeHTML(file *os.File, superblock structs.SuperBloque, partitionN
 <body>
     <div class="container">
         <div class="header">
-            <h1>📁 Reporte INODE</h1>
+            <h1> Reporte INODE</h1>
             <p class="subtitle">Lista Enlazada de Inodos - ExtreamFS </p>
         </div>`)
 
-	// Leer inodos desde el superbloque
 	inodes := readInodesFromPartition(file, superblock)
 	usedInodes := filterUsedInodes(inodes)
 
-	// Mostrar solo la lista enlazada de inodos
 	if len(usedInodes) > 0 {
 		html.WriteString(`
         <div class="inode-chain">`)
 
 		for i, inode := range usedInodes {
-			// Determinar el tipo de inodo
+
 			inodeClass := "inode-used"
 			iconType := "📄"
 			typeText := "Archivo"
 
-			// Interpretar el tipo correctamente
 			var realType int64
-			if inode.I_type >= 48 && inode.I_type <= 57 { // ASCII '0'-'9'
-				realType = int64(inode.I_type - 48) // Convertir ASCII a número
+			if inode.I_type >= 48 && inode.I_type <= 57 {
+				realType = int64(inode.I_type - 48)
 			} else {
 				realType = int64(inode.I_type)
 			}
 
-			// Detectar tipos
 			switch realType {
-			case 0: // Directorio
+			case 0:
 				inodeClass = "inode-directory"
 				iconType = "📁"
 				typeText = "Directorio"
-			case 1: // Archivo regular
+			case 1:
 				inodeClass = "inode-file"
 				iconType = "📄"
 				typeText = "Archivo"
 			default:
-				// Detectar por tamaño
-				if inode.I_s == 96 { // Tamaño típico de directorio
+				if inode.I_s == 96 {
 					inodeClass = "inode-directory"
 					iconType = "📁"
 					typeText = fmt.Sprintf("Directorio (tipo %d)", realType)
@@ -2080,7 +2005,6 @@ func generateInodeHTML(file *os.File, superblock structs.SuperBloque, partitionN
                     %s Inodo %d
                 </div>`, inodeClass, i*200, iconType, i))
 
-			// Campos del inodo
 			html.WriteString(fmt.Sprintf(`
                 <div class="inode-field">
                     <span class="field-label">I_uid:</span>
@@ -2116,7 +2040,7 @@ func generateInodeHTML(file *os.File, superblock structs.SuperBloque, partitionN
 				formatTimestamp(inode.I_mtime),
 				typeText, formatPermissions(inode.I_perm)))
 
-			// Mostrar bloques asignados
+			//mostrar bloques asignados
 			html.WriteString(`
                 <div class="blocks-container">
                     <div class="field-label" style="margin-bottom: 8px;">Bloques asignados:</div>`)
@@ -2145,7 +2069,6 @@ func generateInodeHTML(file *os.File, superblock structs.SuperBloque, partitionN
                 </div>
             </div>`)
 
-			// Agregar flecha si no es el último
 			if i < len(usedInodes)-1 {
 				html.WriteString(`
             <div class="arrow">→</div>`)
@@ -2155,7 +2078,7 @@ func generateInodeHTML(file *os.File, superblock structs.SuperBloque, partitionN
 		html.WriteString(`
         </div>`)
 	} else {
-		// Estado vacío
+		//estado vacío
 		html.WriteString(`
         <div class="empty-state">
             <div class="empty-icon">📂</div>
@@ -2167,9 +2090,9 @@ func generateInodeHTML(file *os.File, superblock structs.SuperBloque, partitionN
 	// Footer simplificado
 	html.WriteString(fmt.Sprintf(`
         <div class="footer">
-            <p>📁 Reporte generado por <strong>ExtreamFS </strong></p>
-            <p>🕒 %s | 📦 Partición: <strong>%s</strong></p>
-            <p>📊 Inodos mostrados: <strong>%d</strong></p>
+            <p> Reporte generado por <strong>ExtreamFS </strong></p>
+            <p> %s | Partición: <strong>%s</strong></p>
+            <p> Inodos mostrados: <strong>%d</strong></p>
         </div>
     </div>
     
@@ -2209,23 +2132,18 @@ func formatPermissions(perm [3]byte) string {
 		return "000"
 	}
 
-	// Si son valores ASCII, convertir a octales
-	if perm[0] >= 48 && perm[0] <= 55 { // Rango ASCII de '0' a '7'
+	if perm[0] >= 48 && perm[0] <= 55 {
 		return fmt.Sprintf("%c%c%c", perm[0], perm[1], perm[2])
 	}
 
-	// Si son valores numéricos directos
 	return fmt.Sprintf("%d%d%d", perm[0], perm[1], perm[2])
 }
 
-// readInodesFromPartition lee todos los inodos de una partición
 func readInodesFromPartition(file *os.File, superblock structs.SuperBloque) []structs.Inodos {
 	var inodes []structs.Inodos
 
-	// Posicionarse en el inicio de los inodos
 	file.Seek(superblock.S_inode_start, 0)
 
-	// Leer todos los inodos
 	for i := int64(0); i < superblock.S_inodes_count; i++ {
 		var inode structs.Inodos
 		if err := binary.Read(file, binary.LittleEndian, &inode); err != nil {
@@ -2236,15 +2154,12 @@ func readInodesFromPartition(file *os.File, superblock structs.SuperBloque) []st
 
 	return inodes
 }
-
-// filterUsedInodes filtra solo los inodos que están en uso
 func filterUsedInodes(inodes []structs.Inodos) []structs.Inodos {
 	var usedInodes []structs.Inodos
 
 	for _, inode := range inodes {
-		// Usar la nueva función de validación más robusta
+
 		if isInodeValid(inode) {
-			// Agregar información de índice para debugging
 			usedInodes = append(usedInodes, inode)
 		}
 	}
@@ -2252,14 +2167,11 @@ func filterUsedInodes(inodes []structs.Inodos) []structs.Inodos {
 	return usedInodes
 }
 
-// formatTimestamp convierte timestamp a formato legible
 func formatTimestamp(timestamp int64) string {
 	if timestamp <= 0 {
 		return "No definido"
 	}
 
-	// Validar que el timestamp esté en un rango razonable
-	// Entre 1970 y 2100 (timestamps típicos de Unix)
 	if timestamp < 0 || timestamp > 4102444800 {
 		return fmt.Sprintf("Timestamp inválido (%d)", timestamp)
 	}
@@ -2267,7 +2179,7 @@ func formatTimestamp(timestamp int64) string {
 	return time.Unix(timestamp, 0).Format("02/01/2006 15:04")
 }
 func isInodeValid(inode structs.Inodos) bool {
-	// Verificar si tiene al menos un bloque válido
+
 	hasValidBlock := false
 	for _, block := range inode.I_block {
 		if block != -1 && block >= 0 {
@@ -2276,7 +2188,6 @@ func isInodeValid(inode structs.Inodos) bool {
 		}
 	}
 
-	// Es válido si tiene bloques asignados O tiene tamaño > 0
 	return hasValidBlock && (inode.I_s > 0 || inode.I_uid >= 0)
 }
 
@@ -2505,25 +2416,24 @@ func generateBlockHTML(file *os.File, superblock structs.SuperBloque, partitionN
 <body>
     <div class="container">
         <div class="header">
-            <h1>🧱 Reporte BLOCK</h1>
             <p class="subtitle">Lista Enlazada de Bloques - ExtreamFS </p>
         </div>`)
 
-	// Leer bloques utilizados
+	//leer bloques utilizados
 	usedBlocks := readUsedBlocksFromPartition(file, superblock)
 
-	// Mostrar solo la lista enlazada de bloques
+	//mostrar solo la lista enlazada de bloques
 	if len(usedBlocks) > 0 {
 		html.WriteString(`
         <div class="block-chain">`)
 
 		for i, blockData := range usedBlocks {
-			// Determinar el tipo de bloque
+			//determinar el tipo de bloque
 			blockClass := "block-item"
 			iconType := "📄"
 			blockType := "Archivo"
 
-			// Detectar tipo por contenido
+			//detectar tipo por contenido
 			switch blockData.Type {
 			case "folder":
 				blockClass = "block-folder"
@@ -2545,12 +2455,10 @@ func generateBlockHTML(file *os.File, superblock structs.SuperBloque, partitionN
                     %s Bloque %s %d
                 </div>`, blockClass, i*200, iconType, blockType, blockData.Index))
 
-			// Contenido del bloque
 			html.WriteString(fmt.Sprintf(`
                 <div class="block-content">%s</div>
             </div>`, blockData.Content))
 
-			// Agregar flecha si no es el último
 			if i < len(usedBlocks)-1 {
 				html.WriteString(`
             <div class="arrow">→</div>`)
@@ -2560,7 +2468,6 @@ func generateBlockHTML(file *os.File, superblock structs.SuperBloque, partitionN
 		html.WriteString(`
         </div>`)
 	} else {
-		// Estado vacío
 		html.WriteString(`
         <div class="empty-state">
             <div class="empty-icon">🧱</div>
@@ -2572,9 +2479,9 @@ func generateBlockHTML(file *os.File, superblock structs.SuperBloque, partitionN
 	// Footer simplificado
 	html.WriteString(fmt.Sprintf(`
         <div class="footer">
-            <p>🧱 Reporte generado por <strong>ExtreamFS </strong></p>
-            <p>🕒 %s | 📦 Partición: <strong>%s</strong></p>
-            <p>📊 Bloques mostrados: <strong>%d</strong></p>
+            <p> Reporte generado por <strong>ExtreamFS </strong></p>
+            <p> %s |  Partición: <strong>%s</strong></p>
+            <p> Bloques mostrados: <strong>%d</strong></p>
         </div>
     </div>
     
@@ -2609,35 +2516,28 @@ func generateBlockHTML(file *os.File, superblock structs.SuperBloque, partitionN
 	return html.String()
 }
 
-// Estructura para almacenar información de bloques
 type BlockData struct {
 	Index   int64
 	Type    string
 	Content string
 }
 
-// readUsedBlocksFromPartition lee todos los bloques utilizados de una partición
 func readUsedBlocksFromPartition(file *os.File, superblock structs.SuperBloque) []BlockData {
 	var usedBlocks []BlockData
 
-	// Primero obtener los inodos utilizados para saber qué bloques están en uso
 	inodes := readInodesFromPartition(file, superblock)
 	usedInodes := filterUsedInodes(inodes)
 
-	// Set para evitar bloques duplicados
 	seenBlocks := make(map[int64]bool)
 
-	// Para cada inodo utilizado, leer sus bloques
 	for _, inode := range usedInodes {
 		for _, blockIndex := range inode.I_block {
 			if blockIndex != -1 && blockIndex >= 0 && !seenBlocks[blockIndex] {
 				seenBlocks[blockIndex] = true
 
-				// Leer el contenido del bloque
 				blockPosition := superblock.S_block_start + (blockIndex * superblock.S_block_s)
 				file.Seek(blockPosition, 0)
 
-				// Determinar el tipo de bloque según el tipo de inodo
 				var blockType string
 				var realType int64
 				if inode.I_type >= 48 && inode.I_type <= 57 {
@@ -2665,15 +2565,12 @@ func readUsedBlocksFromPartition(file *os.File, superblock structs.SuperBloque) 
 
 	return usedBlocks
 }
-
-// readBlockContent lee y formatea el contenido de un bloque
 func readBlockContent(file *os.File, superblock structs.SuperBloque, blockIndex int64, blockType string) string {
 	blockPosition := superblock.S_block_start + (blockIndex * superblock.S_block_s)
 	file.Seek(blockPosition, 0)
 
 	switch blockType {
 	case "folder":
-		// Leer como bloque de carpeta
 		var folderBlock structs.BloqueCarpeta
 		if err := binary.Read(file, binary.LittleEndian, &folderBlock); err != nil {
 			return fmt.Sprintf("Error al leer bloque de carpeta: %v", err)
@@ -2681,12 +2578,12 @@ func readBlockContent(file *os.File, superblock structs.SuperBloque, blockIndex 
 
 		var content strings.Builder
 
-		// Formatear el contenido como en el ejemplo
+		//formatear el contenido como en el ejemplo
 		for i, content_entry := range folderBlock.BContent {
 			name := strings.TrimRight(string(content_entry.BName[:]), "\x00")
 			if name != "" {
 				content.WriteString(fmt.Sprintf("%-12s %d\n", name, content_entry.BInodo))
-			} else if i < 4 { // Mostrar entradas vacías solo para las primeras 4
+			} else if i < 4 {
 				content.WriteString(fmt.Sprintf("%-12s %d\n", "", content_entry.BInodo))
 			}
 		}
@@ -2694,13 +2591,11 @@ func readBlockContent(file *os.File, superblock structs.SuperBloque, blockIndex 
 		return content.String()
 
 	case "file":
-		// Leer como bloque de archivo
 		var fileBlock structs.BloqueArchivo
 		if err := binary.Read(file, binary.LittleEndian, &fileBlock); err != nil {
 			return fmt.Sprintf("Error al leer bloque de archivo: %v", err)
 		}
 
-		// Convertir contenido del archivo a string
 		content := strings.TrimRight(string(fileBlock.BContent[:]), "\x00")
 		if content == "" {
 			return "(archivo vacío)"
@@ -2709,7 +2604,6 @@ func readBlockContent(file *os.File, superblock structs.SuperBloque, blockIndex 
 		return content
 
 	case "pointer":
-		// Leer como bloque de apuntadores
 		var pointerBlock structs.BloqueApuntador
 		if err := binary.Read(file, binary.LittleEndian, &pointerBlock); err != nil {
 			return fmt.Sprintf("Error al leer bloque de apuntadores: %v", err)
@@ -2728,26 +2622,24 @@ func readBlockContent(file *os.File, superblock structs.SuperBloque, blockIndex 
 		return content.String()
 	}
 
-	// Leer contenido raw si no se puede determinar el tipo
+	//leer contenido raw si no se puede determinar el tipo
 	buffer := make([]byte, superblock.S_block_s)
 	file.Read(buffer)
 
-	// Convertir a string, mostrando solo caracteres imprimibles
 	var content strings.Builder
 	for i, b := range buffer {
-		if b >= 32 && b <= 126 { // Caracteres imprimibles ASCII
+		if b >= 32 && b <= 126 {
 			content.WriteByte(b)
 		} else if b == 0 {
-			if i < 100 { // Solo mostrar algunos ceros al principio
+			if i < 100 {
 				content.WriteString("\\0")
 			} else {
-				break // Dejar de mostrar después de muchos ceros
+				break
 			}
 		} else {
 			content.WriteString(fmt.Sprintf("\\x%02x", b))
 		}
 
-		// Limitar la longitud del contenido mostrado
 		if content.Len() > 500 {
 			content.WriteString("...")
 			break
@@ -2774,19 +2666,14 @@ func generateBitmapInodeTxt(file *os.File, superblock structs.SuperBloque, parti
 	content.WriteString("Bitmap (0=Libre, 1=Usado) - 20 registros por línea:\n")
 	content.WriteString("==================================================\n\n")
 
-	// Leer el bitmap de inodos
 	bitmapData := readInodeBitmap(file, superblock)
 
-	// Convertir bitmap a bits individuales
 	bits := convertBitmapToBits(bitmapData, int(superblock.S_inodes_count))
 
-	// Mostrar bits en formato de 20 por línea con numeración
 	lineNumber := 0
 	for i := 0; i < len(bits); i += 20 {
-		// Número de línea (empezando desde 0)
 		content.WriteString(fmt.Sprintf("%2d: ", lineNumber))
 
-		// Mostrar hasta 20 bits en esta línea
 		end := i + 20
 		if end > len(bits) {
 			end = len(bits)
@@ -2796,7 +2683,6 @@ func generateBitmapInodeTxt(file *os.File, superblock structs.SuperBloque, parti
 			content.WriteString(fmt.Sprintf("%d ", bits[j]))
 		}
 
-		// Información adicional de la línea
 		usedInLine := 0
 		for j := i; j < end; j++ {
 			if bits[j] == 1 {
@@ -2811,9 +2697,8 @@ func generateBitmapInodeTxt(file *os.File, superblock structs.SuperBloque, parti
 		lineNumber++
 	}
 
-	// Estadísticas finales
 	content.WriteString("\n==================================================\n")
-	content.WriteString("                  ESTADÍSTICAS\n")
+	content.WriteString("                  ESTADISTICAS\n")
 	content.WriteString("==================================================\n")
 
 	totalUsed := 0
@@ -2831,11 +2716,11 @@ func generateBitmapInodeTxt(file *os.File, superblock structs.SuperBloque, parti
 	content.WriteString(fmt.Sprintf("Inodos marcados como libres: %d\n", totalFree))
 	content.WriteString(fmt.Sprintf("Porcentaje de uso: %.2f%%\n", float64(totalUsed)/float64(len(bits))*100))
 	content.WriteString(fmt.Sprintf("Posición del bitmap: %d bytes\n", superblock.S_bm_inode_start))
-	content.WriteString(fmt.Sprintf("Tamaño del bitmap: %d bytes\n", (superblock.S_inodes_count+7)/8)) // Redondear hacia arriba
+	content.WriteString(fmt.Sprintf("Tamaño del bitmap: %d bytes\n", (superblock.S_inodes_count+7)/8))
 
 	// Verificación de consistencia
 	if int64(totalFree) != superblock.S_free_inodes_count {
-		content.WriteString("\n⚠️  ADVERTENCIA: Inconsistencia detectada!\n")
+		content.WriteString("\n ADVERTENCIA: Inconsistencia detectada!\n")
 		content.WriteString(fmt.Sprintf("   Superbloque dice %d libres, bitmap muestra %d libres\n",
 			superblock.S_free_inodes_count, totalFree))
 	}
@@ -2847,15 +2732,13 @@ func generateBitmapInodeTxt(file *os.File, superblock structs.SuperBloque, parti
 	return content.String()
 }
 
-// readInodeBitmap lee el bitmap de inodos desde el disco
+// lee el bitmap de inodos desde el disco
 func readInodeBitmap(file *os.File, superblock structs.SuperBloque) []byte {
-	// Calcular el tamaño del bitmap en bytes
-	bitmapSizeBytes := (superblock.S_inodes_count + 7) / 8 // Redondear hacia arriba
 
-	// Posicionarse en el inicio del bitmap de inodos
+	bitmapSizeBytes := (superblock.S_inodes_count + 7) / 8
+
 	file.Seek(superblock.S_bm_inode_start, 0)
 
-	// Leer el bitmap completo
 	bitmapData := make([]byte, bitmapSizeBytes)
 	_, err := file.Read(bitmapData)
 	if err != nil {
@@ -2866,21 +2749,18 @@ func readInodeBitmap(file *os.File, superblock structs.SuperBloque) []byte {
 	return bitmapData
 }
 
-// convertBitmapToBits convierte el bitmap de bytes a bits individuales
 func convertBitmapToBits(bitmapData []byte, totalInodes int) []int {
 	var bits []int
 
 	bitCount := 0
 	for _, byteValue := range bitmapData {
-		// Procesar cada bit del byte (del bit 0 al 7)
+
 		for bitPos := 0; bitPos < 8 && bitCount < totalInodes; bitPos++ {
-			// Extraer el bit en la posición bitPos
 			bit := (byteValue >> bitPos) & 1
 			bits = append(bits, int(bit))
 			bitCount++
 		}
 
-		// Si ya hemos procesado todos los inodos, salir
 		if bitCount >= totalInodes {
 			break
 		}
@@ -2892,7 +2772,7 @@ func convertBitmapToBits(bitmapData []byte, totalInodes int) []int {
 func generateBitmapBlockTxt(file *os.File, superblock structs.SuperBloque, partitionName string) string {
 	var content strings.Builder
 
-	// Encabezado del reporte
+	//encabezado del reporte
 	content.WriteString("==================================================\n")
 	content.WriteString("           REPORTE BITMAP DE BLOQUES\n")
 	content.WriteString("              ExtreamFS \n")
@@ -2906,19 +2786,15 @@ func generateBitmapBlockTxt(file *os.File, superblock structs.SuperBloque, parti
 	content.WriteString("Bitmap (0=Libre, 1=Usado) - 20 registros por línea:\n")
 	content.WriteString("==================================================\n\n")
 
-	// Leer el bitmap de bloques
 	bitmapData := readBlockBitmap(file, superblock)
 
-	// Convertir bitmap a bits individuales
 	bits := convertBitmapToBits(bitmapData, int(superblock.S_blocks_count))
 
-	// Mostrar bits en formato de 20 por línea con numeración
 	lineNumber := 0
 	for i := 0; i < len(bits); i += 20 {
-		// Número de línea
+
 		content.WriteString(fmt.Sprintf("%2d: ", lineNumber))
 
-		// Mostrar hasta 20 bits
 		end := i + 20
 		if end > len(bits) {
 			end = len(bits)
@@ -2928,7 +2804,6 @@ func generateBitmapBlockTxt(file *os.File, superblock structs.SuperBloque, parti
 			content.WriteString(fmt.Sprintf("%d ", bits[j]))
 		}
 
-		// Información adicional
 		usedInLine := 0
 		for j := i; j < end; j++ {
 			if bits[j] == 1 {
@@ -2943,9 +2818,8 @@ func generateBitmapBlockTxt(file *os.File, superblock structs.SuperBloque, parti
 		lineNumber++
 	}
 
-	// Estadísticas finales
 	content.WriteString("\n==================================================\n")
-	content.WriteString("                  ESTADÍSTICAS\n")
+	content.WriteString("                  ESTADISTICAS\n")
 	content.WriteString("==================================================\n")
 
 	totalUsed := 0
@@ -2972,39 +2846,35 @@ func generateBitmapBlockTxt(file *os.File, superblock structs.SuperBloque, parti
 	return content.String()
 }
 
-// readBlockBitmap lee el bitmap de bloques desde el disco
+// lee el bitmap de bloques desde el disco
 func readBlockBitmap(file *os.File, superblock structs.SuperBloque) []byte {
-	// Calcular el tamaño del bitmap en bytes
-	bitmapSizeBytes := (superblock.S_blocks_count + 7) / 8 // Redondear hacia arriba
 
-	// Posicionarse en el inicio del bitmap de bloques
+	bitmapSizeBytes := (superblock.S_blocks_count + 7) / 8
+
 	file.Seek(superblock.S_bm_block_start, 0)
 
-	// Leer el bitmap completo
 	bitmapData := make([]byte, bitmapSizeBytes)
 	_, err := file.Read(bitmapData)
 	if err != nil {
-		fmt.Printf("⚠️  Error al leer bitmap de bloques: %v\n", err)
+		fmt.Printf("Error al leer bitmap de bloques: %v\n", err)
 		return bitmapData
 	}
 
 	return bitmapData
 }
 
-// Estructura para representar nodos del árbol
 type TreeNode struct {
-	Type      string // "inode", "folder_block", "file_block", "pointer_block"
-	Index     int64  // Índice del inodo o bloque
-	Name      string // Nombre del archivo/directorio
-	Content   string // Contenido formateado
+	Type      string
+	Index     int64
+	Name      string
+	Content   string
 	Children  []*TreeNode
 	InodeData *structs.Inodos
-	BlockData interface{} // BloqueCarpeta, BloqueArchivo, o BloqueApuntador
-	Level     int         // Nivel en el árbol para el layout
-	X, Y      int         // Coordenadas para el layout
+	BlockData interface{}
+	Level     int
+	X, Y      int
 }
 
-// generateTreeHTML genera el reporte del árbol en HTML
 func generateTreeHTML(file *os.File, superblock structs.SuperBloque, partitionName string) string {
 	var html strings.Builder
 
@@ -3322,7 +3192,7 @@ func generateTreeHTML(file *os.File, superblock structs.SuperBloque, partitionNa
 <body>
     <div class="container">
         <div class="header">
-            <h1>🌳 Reporte TREE</h1>
+            <h1>Reporte TREE</h1>
             <p class="subtitle">Árbol del Sistema de Archivos - ExtreamFS </p>
         </div>
         
@@ -3345,29 +3215,26 @@ func generateTreeHTML(file *os.File, superblock structs.SuperBloque, partitionNa
             </div>
         </div>`)
 
-	// Construir el árbol del sistema de archivos
 	tree := buildFileSystemTree(file, superblock)
 
 	if tree != nil {
 		html.WriteString(`
         <div class="tree-wrapper">
             <div class="scroll-hint">
-                💡 Usa las barras de desplazamiento para navegar por el árbol completo
+                 Usa las barras de desplazamiento para navegar por el árbol completo
             </div>
             
             <div class="tree-controls">
-                <button class="control-btn" onclick="resetTreeView()">🔄 Centrar Vista</button>
-                <button class="control-btn" onclick="zoomTree(1.2)">🔍 Zoom +</button>
-                <button class="control-btn" onclick="zoomTree(0.8)">🔍 Zoom -</button>
+                <button class="control-btn" onclick="resetTreeView()">Centrar Vista</button>
+                <button class="control-btn" onclick="zoomTree(1.2)">Zoom +</button>
+                <button class="control-btn" onclick="zoomTree(0.8)">Zoom -</button>
             </div>
             
             <div class="tree-container" id="treeContainer">
                 <div class="tree-canvas" id="treeCanvas">`)
 
-		// Calcular posiciones para el layout mejorado
 		layoutTreeImproved(tree, 50, 50)
 
-		// Renderizar nodos y conexiones
 		renderTreeNodes(tree, &html)
 		renderTreeConnections(tree, &html)
 
@@ -3380,7 +3247,6 @@ func generateTreeHTML(file *os.File, superblock structs.SuperBloque, partitionNa
         <div class="tree-wrapper">
             <div class="tree-container">
                 <div class="empty-state">
-                    <div class="empty-icon">🌳</div>
                     <h3>Sistema de archivos vacío</h3>
                     <p>No se encontraron inodos válidos para generar el árbol.</p>
                 </div>
@@ -3388,12 +3254,12 @@ func generateTreeHTML(file *os.File, superblock structs.SuperBloque, partitionNa
         </div>`)
 	}
 
-	// Footer
+	//footer
 	html.WriteString(fmt.Sprintf(`
         <div class="footer">
-            <p>🌳 Reporte generado por <strong>ExtreamFS </strong></p>
-            <p>🕒 %s | 📦 Partición: <strong>%s</strong></p>
-            <p>📊 El árbol se muestra en un contenedor con scroll para mejor navegación</p>
+            <p>Reporte generado por <strong>ExtreamFS </strong></p>
+            <p>%s | Partición: <strong>%s</strong></p>
+            <p>El árbol se muestra en un contenedor con scroll para mejor navegación</p>
         </div>
     </div>
     
@@ -3495,36 +3361,32 @@ func layoutTreeImproved(node *TreeNode, x, y int) {
 	node.X = x
 	node.Y = y
 
-	// Calcular el ancho total necesario para todos los hijos
 	totalWidth := 0
 	if len(node.Children) > 0 {
-		totalWidth = len(node.Children) * 220 // Espaciado horizontal mejorado
+		totalWidth = len(node.Children) * 220
 	}
 
-	// Centrar los hijos
 	startX := x - totalWidth/2
 	if startX < 50 {
-		startX = 50 // Margen mínimo
+		startX = 50
 	}
 
-	childY := y + 180 // Espaciado vertical mejorado
+	childY := y + 180
 
 	for i, child := range node.Children {
 		childX := startX + (i * 220)
 		layoutTreeImproved(child, childX, childY)
 
-		// Si es un bloque de carpeta con inodos hijos, dar más espacio
 		if child.Type == "folder_block" && len(child.Children) > 0 {
-			// Los hijos de este bloque se distribuirán automáticamente
+
 			extraWidth := len(child.Children) * 60
 			startX += extraWidth
 		}
 	}
 }
 
-// buildFileSystemTree construye el árbol del sistema de archivos
 func buildFileSystemTree(file *os.File, superblock structs.SuperBloque) *TreeNode {
-	// Leer todos los inodos
+
 	inodes := readInodesFromPartition(file, superblock)
 	usedInodes := filterUsedInodes(inodes)
 
@@ -3532,7 +3394,6 @@ func buildFileSystemTree(file *os.File, superblock structs.SuperBloque) *TreeNod
 		return nil
 	}
 
-	// Buscar el inodo raíz (generalmente el inodo 0 que es un directorio)
 	var rootInode *structs.Inodos
 	var rootIndex int
 
@@ -3544,7 +3405,6 @@ func buildFileSystemTree(file *os.File, superblock structs.SuperBloque) *TreeNod
 			realType = int64(inode.I_type)
 		}
 
-		// Buscar directorio que pueda ser raíz
 		if realType == 0 || inode.I_s == 96 {
 			rootInode = &inode
 			rootIndex = i
@@ -3553,12 +3413,11 @@ func buildFileSystemTree(file *os.File, superblock structs.SuperBloque) *TreeNod
 	}
 
 	if rootInode == nil {
-		// Si no hay directorio, usar el primer inodo
 		rootInode = &usedInodes[0]
 		rootIndex = 0
 	}
 
-	// Crear nodo raíz
+	//crear nodo raiz
 	rootNode := &TreeNode{
 		Type:      "inode",
 		Index:     int64(rootIndex),
@@ -3570,28 +3429,26 @@ func buildFileSystemTree(file *os.File, superblock structs.SuperBloque) *TreeNod
 
 	rootNode.Content = formatInodeContent(*rootInode, rootIndex)
 
-	// Construir recursivamente el árbol
 	buildInodeTree(file, superblock, rootNode, usedInodes, 1)
 
 	return rootNode
 }
 
-// buildInodeTree construye recursivamente el árbol desde un inodo
+// construye recursivamente el arbol desde un inodo
 func buildInodeTree(file *os.File, superblock structs.SuperBloque, parentNode *TreeNode, allInodes []structs.Inodos, level int) {
-	if parentNode.InodeData == nil || level > 5 { // Límite de profundidad
+	if parentNode.InodeData == nil || level > 5 {
 		return
 	}
 
 	inode := *parentNode.InodeData
 
-	// Procesar bloques del inodo
+	// procesar bloques del inodo
 	for i := 0; i < 15; i++ {
 		blockIndex := inode.I_block[i]
 		if blockIndex == -1 || blockIndex < 0 {
 			continue
 		}
 
-		// Determinar tipo de bloque
 		var blockType string
 		var realType int64
 		if inode.I_type >= 48 && inode.I_type <= 57 {
@@ -3600,17 +3457,16 @@ func buildInodeTree(file *os.File, superblock structs.SuperBloque, parentNode *T
 			realType = int64(inode.I_type)
 		}
 
-		if i < 12 { // Bloques directos
+		if i < 12 {
 			if realType == 0 || inode.I_s == 96 {
 				blockType = "folder_block"
 			} else {
 				blockType = "file_block"
 			}
-		} else { // Bloques de apuntadores
+		} else {
 			blockType = "pointer_block"
 		}
 
-		// Crear nodo para el bloque
 		blockNode := &TreeNode{
 			Type:     blockType,
 			Index:    blockIndex,
@@ -3619,17 +3475,14 @@ func buildInodeTree(file *os.File, superblock structs.SuperBloque, parentNode *T
 			Children: []*TreeNode{},
 		}
 
-		// Leer contenido del bloque
 		switch blockType {
 		case "folder_block":
 			blockNode.Content, blockNode.BlockData = readFolderBlockForTree(file, superblock, blockIndex)
 
-			// Si es bloque de carpeta, buscar inodos referenciados
 			if folderBlock, ok := blockNode.BlockData.(structs.BloqueCarpeta); ok {
 				for _, entry := range folderBlock.BContent {
 					entryName := strings.TrimRight(string(entry.BName[:]), "\x00")
 					if entryName != "" && entryName != "." && entryName != ".." && entry.BInodo >= 0 {
-						// Buscar el inodo referenciado
 						if int(entry.BInodo) < len(allInodes) {
 							referencedInode := allInodes[entry.BInodo]
 
@@ -3644,7 +3497,6 @@ func buildInodeTree(file *os.File, superblock structs.SuperBloque, parentNode *T
 
 							childInodeNode.Content = formatInodeContent(referencedInode, int(entry.BInodo))
 
-							// Recursión para construir subárbol
 							buildInodeTree(file, superblock, childInodeNode, allInodes, level+2)
 
 							blockNode.Children = append(blockNode.Children, childInodeNode)
@@ -3663,7 +3515,6 @@ func buildInodeTree(file *os.File, superblock structs.SuperBloque, parentNode *T
 	}
 }
 
-// Funciones para leer contenido de bloques específicos para el árbol
 func readFolderBlockForTree(file *os.File, superblock structs.SuperBloque, blockIndex int64) (string, interface{}) {
 	blockPosition := superblock.S_block_start + (blockIndex * superblock.S_block_s)
 	file.Seek(blockPosition, 0)
@@ -3701,7 +3552,6 @@ func readFileBlockForTree(file *os.File, superblock structs.SuperBloque, blockIn
 		return "(vacío)"
 	}
 
-	// Limitar longitud para visualización
 	if len(content) > 50 {
 		return content[:47] + "..."
 	}
@@ -3726,7 +3576,7 @@ func readPointerBlockForTree(file *os.File, superblock structs.SuperBloque, bloc
 		if pointer != -1 && pointer >= 0 {
 			content.WriteString(fmt.Sprintf("[%d]: %d\n", i, pointer))
 			validPointers++
-			if validPointers >= 6 { // Limitar para visualización
+			if validPointers >= 6 {
 				content.WriteString("...")
 				break
 			}
@@ -3759,13 +3609,11 @@ func formatInodeContent(inode structs.Inodos, inodeIndex int) string {
 	return content.String()
 }
 
-// renderTreeNodes renderiza todos los nodos del árbol
 func renderTreeNodes(node *TreeNode, html *strings.Builder) {
 	if node == nil {
 		return
 	}
 
-	// Determinar clase CSS según el tipo
 	nodeClass := ""
 	switch node.Type {
 	case "inode":
@@ -3778,7 +3626,7 @@ func renderTreeNodes(node *TreeNode, html *strings.Builder) {
 		nodeClass = "pointer-block-node"
 	}
 
-	// Renderizar nodo actual
+	//renderizar nodo actual
 	html.WriteString(fmt.Sprintf(
 		`<div class="tree-node %s" style="left: %dpx; top: %dpx;">`+
 			`<div class="node-header">%s</div>`+
@@ -3786,33 +3634,30 @@ func renderTreeNodes(node *TreeNode, html *strings.Builder) {
 			`</div>`,
 		nodeClass, node.X, node.Y, node.Name, node.Content))
 
-	// Renderizar nodos hijos recursivamente
 	for _, child := range node.Children {
 		renderTreeNodes(child, html)
 	}
 }
 
-// renderTreeConnections renderiza las líneas de conexión entre nodos
 func renderTreeConnections(node *TreeNode, html *strings.Builder) {
 	if node == nil {
 		return
 	}
 
-	// Renderizar conexiones a hijos
+	//renderizar conexiones a hijos
 	for _, child := range node.Children {
-		// Calcular posiciones de conexión
-		startX := node.X + 90 // Centro del nodo padre
-		startY := node.Y + 60 // Parte inferior del nodo padre
-		endX := child.X + 90  // Centro del nodo hijo
-		endY := child.Y       // Parte superior del nodo hijo
+		startX := node.X + 90
+		startY := node.Y + 60
+		endX := child.X + 90
+		endY := child.Y
 
-		// Línea vertical desde el padre
+		//linea vertical desde el padre
 		html.WriteString(fmt.Sprintf(`
             <div class="connection-line connection-vertical" 
                  style="left: %dpx; top: %dpx; height: %dpx;"></div>`,
 			startX, startY, 20))
 
-		// Línea horizontal
+		//linea horizontal
 		lineLeft := min(startX, endX)
 		lineWidth := abs(endX - startX)
 		if lineWidth > 0 {
@@ -3822,18 +3667,18 @@ func renderTreeConnections(node *TreeNode, html *strings.Builder) {
 				lineLeft, startY+20, lineWidth))
 		}
 
-		// Línea vertical hacia el hijo
+		//linea vertical hacia el hijo
 		html.WriteString(fmt.Sprintf(`
             <div class="connection-line connection-vertical" 
                  style="left: %dpx; top: %dpx; height: %dpx;"></div>`,
 			endX, startY+20, endY-(startY+20)))
 
-		// Flecha en el destino
+		//flecha en el destino
 		html.WriteString(fmt.Sprintf(`
             <div class="arrow" style="left: %dpx; top: %dpx;"></div>`,
 			endX-6, endY-8))
 
-		// Renderizar conexiones de los hijos recursivamente
+		//renderizar conexiones de los hijos recursivamente
 		renderTreeConnections(child, html)
 	}
 }
@@ -3853,7 +3698,7 @@ func abs(a int) int {
 	return a
 }
 
-// generateSuperBlockHTML genera el reporte del superbloque en HTML
+// reporte del superbloque en HTML
 func generateSuperBlockHTML(superblock structs.SuperBloque, partitionName, diskPath string) string {
 	var html strings.Builder
 
@@ -4055,7 +3900,7 @@ func generateSuperBlockHTML(superblock structs.SuperBloque, partitionName, diskP
 <body>
     <div class="container">
         <div class="header">
-            <h1>📋 Reporte de SUPERBLOQUE</h1>
+            <h1>Reporte de SUPERBLOQUE</h1>
             <p class="subtitle">Información Detallada del Superbloque - ExtreamFS </p>
         </div>`)
 
@@ -4086,13 +3931,11 @@ func generateSuperBlockHTML(superblock structs.SuperBloque, partitionName, diskP
             </div>
         </div>`, partitionName, filepath.Base(diskPath), time.Now().Format("2006-01-02 15:04:05")))
 
-	// Tabla principal del superbloque (exactamente como en la imagen)
 	html.WriteString(`
         <div class="superblock-table-container animation-fade">
             <div class="table-title">Reporte de SUPERBLOQUE</div>
             <table class="superblock-table">`)
 
-	// Generar todas las filas de la tabla como en la imagen
 	fields := []struct {
 		name  string
 		value string
@@ -4141,7 +3984,7 @@ func generateSuperBlockHTML(superblock structs.SuperBloque, partitionName, diskP
             </table>
         </div>`)
 
-	// Estadísticas adicionales
+	//estadisticas adicionales
 	html.WriteString(fmt.Sprintf(`
         <div class="info-section animation-fade">
             <div class="info-title">
@@ -4177,9 +4020,9 @@ func generateSuperBlockHTML(superblock structs.SuperBloque, partitionName, diskP
 	// Footer
 	html.WriteString(fmt.Sprintf(`
         <div class="footer">
-            <p>📋 Reporte generado por <strong>ExtreamFS </strong></p>
-            <p>🕒 %s | 📦 Partición: <strong>%s</strong></p>
-            <p>🔢 Magic Number: <strong>%d</strong> | 📈 Total montajes: <strong>%d</strong></p>
+            <p>Reporte generado por <strong>ExtreamFS </strong></p>
+            <p>%s | Partición: <strong>%s</strong></p>
+            <p>Magic Number: <strong>%d</strong> | Total montajes: <strong>%d</strong></p>
         </div>
     </div>
     
@@ -4210,13 +4053,12 @@ func generateSuperBlockHTML(superblock structs.SuperBloque, partitionName, diskP
 	return html.String()
 }
 
-// formatSuperBlockTimestamp formatea timestamps para el superbloque
 func formatSuperBlockTimestamp(timestamp int64) string {
 	if timestamp <= 0 {
 		return "No definido"
 	}
 
-	// Validar que el timestamp esté en un rango razonable
+	//validar que el timestamp este en un rango razonable
 	if timestamp < 0 || timestamp > 4102444800 {
 		return fmt.Sprintf("Timestamp inválido (%d)", timestamp)
 	}
@@ -4224,11 +4066,11 @@ func formatSuperBlockTimestamp(timestamp int64) string {
 	return time.Unix(timestamp, 0).Format("2006-01-02 15:04")
 }
 
-// generateFileTxt genera el contenido del reporte de archivo en formato texto
+// contenido del reporte de archivo en formato texto
 func generateFileTxt(file *os.File, superblock structs.SuperBloque, filePath, partitionName string) string {
 	var content strings.Builder
 
-	// Encabezado del reporte
+	//encabezado del reporte
 	content.WriteString("==================================================\n")
 	content.WriteString("              REPORTE DE ARCHIVO\n")
 	content.WriteString("              ExtreamFS \n")
@@ -4238,17 +4080,16 @@ func generateFileTxt(file *os.File, superblock structs.SuperBloque, filePath, pa
 	content.WriteString(fmt.Sprintf("Fecha: %s\n", time.Now().Format("2006-01-02 15:04:05")))
 	content.WriteString("==================================================\n\n")
 
-	// Buscar el archivo en el sistema de archivos
 	fileContent, fileInfo, err := findAndReadFile(file, superblock, filePath)
 
 	if err != nil {
-		content.WriteString(fmt.Sprintf("❌ ERROR: %v\n\n", err))
+		content.WriteString(fmt.Sprintf("ERROR: %v\n\n", err))
 		content.WriteString("==================================================\n")
 		content.WriteString("           INFORMACIÓN DE DEBUG\n")
 		content.WriteString("==================================================\n")
 		content.WriteString("Intentando listar contenido del directorio raíz...\n\n")
 
-		// Mostrar contenido del directorio raíz para debug
+		//mostrar contenido del directorio para debug
 		debugContent := listRootDirectory(file, superblock)
 		content.WriteString(debugContent)
 
@@ -4258,8 +4099,8 @@ func generateFileTxt(file *os.File, superblock structs.SuperBloque, filePath, pa
 		return content.String()
 	}
 
-	// Mostrar información del archivo encontrado
-	content.WriteString("📄 ARCHIVO ENCONTRADO\n")
+	//mostrar información del archivo encontrado
+	content.WriteString("ARCHIVO ENCONTRADO\n")
 	content.WriteString("==================================================\n")
 	content.WriteString(fmt.Sprintf("Nombre: %s\n", fileInfo.Name))
 	content.WriteString(fmt.Sprintf("Tamaño: %d bytes\n", fileInfo.Size))
@@ -4272,21 +4113,21 @@ func generateFileTxt(file *os.File, superblock structs.SuperBloque, filePath, pa
 	content.WriteString(fmt.Sprintf("Fecha modificación: %s\n", fileInfo.ModificationTime))
 	content.WriteString("==================================================\n\n")
 
-	// Mostrar contenido del archivo
-	content.WriteString("📝 CONTENIDO DEL ARCHIVO\n")
+	//mostrar contenido del archivo
+	content.WriteString("CONTENIDO DEL ARCHIVO\n")
 	content.WriteString("==================================================\n")
 
 	if len(fileContent) == 0 {
 		content.WriteString("(El archivo está vacío)\n")
 	} else {
-		// Verificar si el contenido es texto o binario
+		//verificar si el contenido es texto o binario
 		if isTextContent(fileContent) {
 			content.WriteString(fileContent)
 		} else {
-			content.WriteString("⚠️  El archivo contiene datos binarios.\n")
+			content.WriteString("El archivo contiene datos binarios.\n")
 			content.WriteString("Mostrando representación hexadecimal:\n\n")
 
-			// Mostrar contenido en formato hexadecimal
+			//mostrar contenido en formato hexadecimal
 			hexContent := formatAsHex(fileContent)
 			content.WriteString(hexContent)
 		}
@@ -4302,7 +4143,7 @@ func generateFileTxt(file *os.File, superblock structs.SuperBloque, filePath, pa
 	return content.String()
 }
 
-// Estructura para información del archivo
+// estructura para información del archivo
 type FileInfo struct {
 	Name             string
 	Size             int64
@@ -4315,42 +4156,37 @@ type FileInfo struct {
 	ModificationTime string
 }
 
-// findAndReadFile busca y lee un archivo específico en el sistema de archivos
 func findAndReadFile(file *os.File, superblock structs.SuperBloque, targetPath string) (string, *FileInfo, error) {
-	// Normalizar la ruta (remover / inicial si existe)
 	targetPath = strings.TrimPrefix(targetPath, "/")
 
-	// Si la ruta está vacía, es un error
 	if targetPath == "" {
 		return "", nil, fmt.Errorf("ruta de archivo vacía")
 	}
 
-	// Dividir la ruta en componentes
 	pathComponents := strings.Split(targetPath, "/")
 
-	// Buscar desde el directorio raíz
-	currentInodeIndex := int64(0) // Comenzar desde el inodo raíz
+	currentInodeIndex := int64(0)
 
-	// Leer todos los inodos
+	//leer todos los inodos
 	inodes := readInodesFromPartition(file, superblock)
 	if len(inodes) == 0 {
 		return "", nil, fmt.Errorf("no se encontraron inodos en la partición")
 	}
 
-	// Navegar por cada componente de la ruta
+	//navegar por cada componente de la ruta
 	for i, component := range pathComponents {
 		if component == "" {
-			continue // Saltar componentes vacíos
+			continue
 		}
 
-		// Verificar que el inodo actual sea válido
+		//verificar que el inodo actual sea válido
 		if currentInodeIndex >= int64(len(inodes)) {
 			return "", nil, fmt.Errorf("inodo índice %d fuera de rango", currentInodeIndex)
 		}
 
 		currentInode := inodes[currentInodeIndex]
 
-		// Verificar que sea un directorio (excepto para el último componente)
+		//verificar que sea un directorio
 		isLastComponent := (i == len(pathComponents)-1)
 		if !isLastComponent {
 			var realType int64
@@ -4365,7 +4201,6 @@ func findAndReadFile(file *os.File, superblock structs.SuperBloque, targetPath s
 			}
 		}
 
-		// Usar la función de file_operations.go - CAMBIO AQUÍ
 		foundInodeIndex, err := findInodeInDirectory(file, &superblock, currentInodeIndex, component)
 		if err != nil {
 			return "", nil, fmt.Errorf("error buscando '%s': %v", component, err)
@@ -4375,9 +4210,9 @@ func findAndReadFile(file *os.File, superblock structs.SuperBloque, targetPath s
 			return "", nil, fmt.Errorf("archivo/directorio '%s' no encontrado en la ruta '%s'", component, targetPath)
 		}
 
-		// Para el último componente, verificar que sea un archivo
+		//para el ultimo componente, verificar que sea un archivo
 		if isLastComponent {
-			// Verificar si es directorio
+
 			foundInode := inodes[foundInodeIndex]
 			var realType int64
 			if foundInode.I_type >= 48 && foundInode.I_type <= 57 {
@@ -4391,13 +4226,13 @@ func findAndReadFile(file *os.File, superblock structs.SuperBloque, targetPath s
 				return "", nil, fmt.Errorf("'%s' es un directorio, no un archivo", targetPath)
 			}
 
-			// Leer el contenido del archivo usando la función de file_operations.go
+			//leer el contenido del archivo
 			fileContent, err := readFileContentMultiBlock(file, &superblock, &foundInode)
 			if err != nil {
 				return "", nil, fmt.Errorf("error leyendo contenido del archivo: %v", err)
 			}
 
-			// Crear información del archivo
+			//crear informacion del archivo
 			fileInfo := &FileInfo{
 				Name:             component,
 				Size:             foundInode.I_s,
@@ -4412,43 +4247,37 @@ func findAndReadFile(file *os.File, superblock structs.SuperBloque, targetPath s
 
 			return fileContent, fileInfo, nil
 		}
-
-		// Continuar con el siguiente nivel
 		currentInodeIndex = foundInodeIndex
 	}
 
 	return "", nil, fmt.Errorf("ruta de archivo inválida")
 }
 
-// isTextContent verifica si el contenido es texto legible
 func isTextContent(content string) bool {
 	if len(content) == 0 {
 		return true
 	}
 
-	// Contar caracteres no imprimibles
+	//contar caracteres no imprimibles
 	nonPrintable := 0
 	for _, char := range content {
-		if char < 32 && char != 9 && char != 10 && char != 13 { // Excluir tab, LF, CR
+		if char < 32 && char != 9 && char != 10 && char != 13 {
 			nonPrintable++
 		}
 	}
 
-	// Si más del 20% son caracteres no imprimibles, considerarlo binario
 	threshold := len(content) / 5
 	return nonPrintable <= threshold
 }
 
-// formatAsHex formatea contenido binario como hexadecimal
 func formatAsHex(content string) string {
 	var hex strings.Builder
 
 	bytes := []byte(content)
 	for i := 0; i < len(bytes); i += 16 {
-		// Dirección
 		hex.WriteString(fmt.Sprintf("%08X: ", i))
 
-		// Bytes en hexadecimal
+		//bytes en hexadecimal
 		for j := 0; j < 16; j++ {
 			if i+j < len(bytes) {
 				hex.WriteString(fmt.Sprintf("%02X ", bytes[i+j]))
@@ -4457,10 +4286,10 @@ func formatAsHex(content string) string {
 			}
 		}
 
-		// Separador
+		//separador
 		hex.WriteString(" | ")
 
-		// Representación ASCII
+		//ASCII
 		for j := 0; j < 16 && i+j < len(bytes); j++ {
 			b := bytes[i+j]
 			if b >= 32 && b <= 126 {
@@ -4472,7 +4301,6 @@ func formatAsHex(content string) string {
 
 		hex.WriteString("\n")
 
-		// Limitar salida para archivos muy grandes
 		if i > 1024 {
 			hex.WriteString("... (contenido truncado, archivo muy grande)\n")
 			break
@@ -4482,7 +4310,7 @@ func formatAsHex(content string) string {
 	return hex.String()
 }
 
-// listRootDirectory lista el contenido del directorio raíz para debug
+// listRootDirectory lista el contenido del directorio para debug
 func listRootDirectory(file *os.File, superblock structs.SuperBloque) string {
 	var content strings.Builder
 
@@ -4491,7 +4319,7 @@ func listRootDirectory(file *os.File, superblock structs.SuperBloque) string {
 		return "No se pudieron leer los inodos.\n"
 	}
 
-	// Buscar directorios válidos
+	//buscar directorios válidos
 	content.WriteString("Directorios encontrados:\n")
 
 	for i, inode := range inodes {
@@ -4509,7 +4337,7 @@ func listRootDirectory(file *os.File, superblock structs.SuperBloque) string {
 		if realType == 0 || inode.I_s == 96 {
 			content.WriteString(fmt.Sprintf("\nDirectorio en inodo %d:\n", i))
 
-			// Listar contenido del directorio
+			//listar contenido del directorio
 			for _, blockIndex := range inode.I_block {
 				if blockIndex == -1 || blockIndex < 0 {
 					continue
@@ -4536,7 +4364,7 @@ func listRootDirectory(file *os.File, superblock structs.SuperBloque) string {
 	return content.String()
 }
 
-// Estructura para almacenar información de archivos/directorios
+// estructura para almacenar informacion de archivos/directorios
 type LsEntry struct {
 	Permissions      string
 	Owner            string
@@ -4551,7 +4379,7 @@ type LsEntry struct {
 	InodeIndex       int64
 }
 
-// generateLsHTML genera el reporte de listado en HTML
+// genera el reporte de listado en HTML
 func generateLsHTML(file *os.File, superblock structs.SuperBloque, dirPath, partitionName string) string {
 	var html strings.Builder
 
@@ -4843,7 +4671,6 @@ func generateLsHTML(file *os.File, superblock structs.SuperBloque, dirPath, part
 	html.WriteString(fmt.Sprintf(`
         <div class="path-info animation-fade">
             <h3>
-                <span>📁</span>
                 Directorio listado:
             </h3>
             <div class="path-value">%s</div>
@@ -4855,14 +4682,12 @@ func generateLsHTML(file *os.File, superblock structs.SuperBloque, dirPath, part
 	if err != nil {
 		html.WriteString(fmt.Sprintf(`
         <div class="empty-state animation-fade">
-            <div class="empty-icon">❌</div>
             <h3>Error al listar directorio</h3>
             <p>%v</p>
         </div>`, err))
 	} else if len(entries) == 0 {
 		html.WriteString(`
         <div class="empty-state animation-fade">
-            <div class="empty-icon">📂</div>
             <h3>Directorio vacío</h3>
             <p>No se encontraron archivos o directorios en esta ubicación.</p>
         </div>`)
@@ -4901,7 +4726,7 @@ func generateLsHTML(file *os.File, superblock structs.SuperBloque, dirPath, part
             </div>
         </div>`, len(entries), fileCount, dirCount, formatBytes(totalSize)))
 
-		// Tabla de archivos y directorios (exactamente como en la imagen)
+		//tabla de archivos y directorios
 		html.WriteString(`
         <div class="ls-table-container animation-fade">
             <table class="ls-table">
@@ -4919,7 +4744,7 @@ func generateLsHTML(file *os.File, superblock structs.SuperBloque, dirPath, part
                 </thead>
                 <tbody>`)
 
-		// Generar filas de la tabla
+		//generar filas de la tabla
 		for _, entry := range entries {
 			typeClass := "type-archivo"
 			nameClass := "name-file"
@@ -4950,7 +4775,7 @@ func generateLsHTML(file *os.File, superblock structs.SuperBloque, dirPath, part
         </div>`)
 	}
 
-	// Footer
+	//Footer
 	html.WriteString(fmt.Sprintf(`
         <div class="footer">
             <p>📋 Reporte generado por <strong>ExtreamFS </strong></p>
@@ -4986,24 +4811,24 @@ func generateLsHTML(file *os.File, superblock structs.SuperBloque, dirPath, part
 	return html.String()
 }
 
-// listDirectoryContents lista el contenido de un directorio específico
+// lista el contenido de un directorio específico
 func listDirectoryContents(file *os.File, superblock structs.SuperBloque, dirPath string) ([]LsEntry, error) {
 	var entries []LsEntry
 
-	// Normalizar la ruta
+	//normalizar la ruta
 	if dirPath == "" || dirPath == "/" {
 		dirPath = "/"
 	} else {
 		dirPath = strings.TrimPrefix(dirPath, "/")
 	}
 
-	// Buscar el directorio objetivo
+	//buscar el directorio objetivo
 	targetInodeIndex, err := findDirectoryInode(file, superblock, dirPath)
 	if err != nil {
 		return entries, fmt.Errorf("directorio no encontrado: %v", err)
 	}
 
-	// Leer todos los inodos
+	//leer todos los inodos
 	inodes := readInodesFromPartition(file, superblock)
 	if targetInodeIndex >= int64(len(inodes)) {
 		return entries, fmt.Errorf("índice de inodo fuera de rango")
@@ -5011,7 +4836,7 @@ func listDirectoryContents(file *os.File, superblock structs.SuperBloque, dirPat
 
 	dirInode := inodes[targetInodeIndex]
 
-	// Verificar que sea un directorio
+	//verificar que sea un directorio
 	var realType int64
 	if dirInode.I_type >= 48 && dirInode.I_type <= 57 {
 		realType = int64(dirInode.I_type - 48)
@@ -5023,13 +4848,13 @@ func listDirectoryContents(file *os.File, superblock structs.SuperBloque, dirPat
 		return entries, fmt.Errorf("la ruta especificada no es un directorio")
 	}
 
-	// Leer el contenido del directorio
+	//leer el contenido del directorio
 	for _, blockIndex := range dirInode.I_block {
 		if blockIndex == -1 || blockIndex < 0 {
 			continue
 		}
 
-		// Leer bloque de directorio
+		//leer bloque de directorio
 		blockPosition := superblock.S_block_start + (blockIndex * superblock.S_block_s)
 		file.Seek(blockPosition, 0)
 
@@ -5038,11 +4863,11 @@ func listDirectoryContents(file *os.File, superblock structs.SuperBloque, dirPat
 			continue
 		}
 
-		// Procesar cada entrada del directorio
+		//procesar cada entrada del directorio
 		for _, entry := range folderBlock.BContent {
 			entryName := strings.TrimRight(string(entry.BName[:]), "\x00")
 
-			// Saltar entradas vacías y referencias a directorio actual/padre
+			//saltar entradas vacias
 			if entryName == "" || entryName == "." || entryName == ".." {
 				continue
 			}
@@ -5050,7 +4875,7 @@ func listDirectoryContents(file *os.File, superblock structs.SuperBloque, dirPat
 			if entry.BInodo >= 0 && int(entry.BInodo) < len(inodes) {
 				entryInode := inodes[entry.BInodo]
 
-				// Crear entrada LS
+				//crear entrada LS
 				lsEntry := createLsEntry(entryInode, entryName, int64(entry.BInodo))
 				entries = append(entries, lsEntry)
 			}
@@ -5060,10 +4885,8 @@ func listDirectoryContents(file *os.File, superblock structs.SuperBloque, dirPat
 	return entries, nil
 }
 
-// findDirectoryInode encuentra el inodo de un directorio específico
 func findDirectoryInode(file *os.File, superblock structs.SuperBloque, dirPath string) (int64, error) {
 	if dirPath == "/" {
-		// Para el directorio raíz, buscar el primer directorio válido
 		inodes := readInodesFromPartition(file, superblock)
 		for i, inode := range inodes {
 			if !isInodeValid(inode) {
@@ -5084,18 +4907,18 @@ func findDirectoryInode(file *os.File, superblock structs.SuperBloque, dirPath s
 		return -1, fmt.Errorf("no se encontró directorio raíz")
 	}
 
-	// Para otros directorios, navegar desde la raíz
+	//navegar desde la raíz
 	pathComponents := strings.Split(dirPath, "/")
 	currentInodeIndex := int64(0)
 
-	// Buscar directorio raíz primero
+	//buscar directorio raiz primero
 	rootIndex, err := findDirectoryInode(file, superblock, "/")
 	if err != nil {
 		return -1, err
 	}
 	currentInodeIndex = rootIndex
 
-	// Navegar por cada componente
+	//navegar por cada componente
 	for _, component := range pathComponents {
 		if component == "" {
 			continue
@@ -5116,9 +4939,8 @@ func findDirectoryInode(file *os.File, superblock structs.SuperBloque, dirPath s
 	return currentInodeIndex, nil
 }
 
-// createLsEntry crea una entrada LS a partir de un inodo
+// crea una entrada LS a partir de un inodo
 func createLsEntry(inode structs.Inodos, name string, inodeIndex int64) LsEntry {
-	// Determinar el tipo
 	var realType int64
 	if inode.I_type >= 48 && inode.I_type <= 57 {
 		realType = int64(inode.I_type - 48)
@@ -5131,11 +4953,9 @@ func createLsEntry(inode structs.Inodos, name string, inodeIndex int64) LsEntry 
 		entryType = "Carpeta"
 	}
 
-	// Formatear fechas
+	//formatear fechas
 	modTime := time.Unix(inode.I_mtime, 0)
 	creTime := time.Unix(inode.I_ctime, 0)
-
-	// Generar nombres de usuario y grupo (simulados)
 	ownerName := fmt.Sprintf("User%d", inode.I_uid)
 	groupName := "Mi grupo"
 	if inode.I_uid != 1 {
@@ -5157,17 +4977,12 @@ func createLsEntry(inode structs.Inodos, name string, inodeIndex int64) LsEntry 
 	}
 }
 
-// formatLsPermissions formatea permisos en formato ls (-rwxrwxrwx)
 func formatLsPermissions(perm [3]byte) string {
-	// Convertir permisos a formato legible
+	//convertir permisos a formato legible
 	permissions := "-"
 
-	// Determinar el tipo (siempre archivo o directorio aquí)
-	// El primer carácter se determinará por el contexto
-
-	// Permisos del propietario (usuario)
 	ownerPerm := int(perm[0])
-	if ownerPerm >= 48 && ownerPerm <= 55 { // ASCII '0'-'7'
+	if ownerPerm >= 48 && ownerPerm <= 55 {
 		ownerPerm = ownerPerm - 48
 	}
 
@@ -5187,7 +5002,7 @@ func formatLsPermissions(perm [3]byte) string {
 		permissions += "-"
 	}
 
-	// Permisos del grupo
+	//permisos del grupo
 	groupPerm := int(perm[1])
 	if groupPerm >= 48 && groupPerm <= 55 {
 		groupPerm = groupPerm - 48
@@ -5209,7 +5024,7 @@ func formatLsPermissions(perm [3]byte) string {
 		permissions += "-"
 	}
 
-	// Permisos de otros
+	//permisos de otros
 	otherPerm := int(perm[2])
 	if otherPerm >= 48 && otherPerm <= 55 {
 		otherPerm = otherPerm - 48

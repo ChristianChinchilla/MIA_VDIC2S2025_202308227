@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// Leer el contenido completo de cualquier archivo (multi-bloque)
+// leer el contenido completo de cualquier archivo multi bloque
 func ReadFileContent(mounted *MountedPartition, fileName string) (string, error) {
 	file, err := os.OpenFile(mounted.Path, os.O_RDWR, 0644)
 	if err != nil {
@@ -16,19 +16,19 @@ func ReadFileContent(mounted *MountedPartition, fileName string) (string, error)
 	}
 	defer file.Close()
 
-	// Obtener partición y superbloque
+	//obtener particion y superbloque
 	_, superblock, err := getPartitionAndSuperblock(file, mounted)
 	if err != nil {
 		return "", err
 	}
 
-	// Buscar el archivo en el directorio raíz
+	//buscar el archivo en el directorio raiz
 	inodeIndex, err := findFileInRootDirectory(file, superblock, fileName)
 	if err != nil {
 		return "", fmt.Errorf("archivo '%s' no encontrado: %v", fileName, err)
 	}
 
-	// Leer el inodo del archivo
+	//leer el inodo del archivo
 	inodePosition := superblock.S_inode_start + (inodeIndex * superblock.S_inode_s)
 	file.Seek(inodePosition, 0)
 	var fileInode structs.Inodos
@@ -36,7 +36,7 @@ func ReadFileContent(mounted *MountedPartition, fileName string) (string, error)
 		return "", fmt.Errorf("error al leer el inodo de '%s': %v", fileName, err)
 	}
 
-	// Leer el contenido completo (multi-bloque)
+	//leer el contenido completo multi bloque
 	content, err := readFileContentMultiBlock(file, superblock, &fileInode)
 	if err != nil {
 		return "", fmt.Errorf("error al leer el contenido de '%s': %v", fileName, err)
@@ -45,7 +45,7 @@ func ReadFileContent(mounted *MountedPartition, fileName string) (string, error)
 	return content, nil
 }
 
-// Escribir contenido completo a cualquier archivo (multi-bloque)
+// escribir contenido completo a cualquier archivo multi bloque
 func WriteFileContent(mounted *MountedPartition, fileName, newContent string) error {
 	file, err := os.OpenFile(mounted.Path, os.O_RDWR, 0644)
 	if err != nil {
@@ -53,19 +53,19 @@ func WriteFileContent(mounted *MountedPartition, fileName, newContent string) er
 	}
 	defer file.Close()
 
-	// Obtener partición y superbloque
+	//obtener particion y superbloque
 	_, superblock, err := getPartitionAndSuperblock(file, mounted)
 	if err != nil {
 		return err
 	}
 
-	// Buscar el archivo en el directorio raíz
+	//buscar el archivo en el directorio raiz
 	inodeIndex, err := findFileInRootDirectory(file, superblock, fileName)
 	if err != nil {
 		return fmt.Errorf("archivo '%s' no encontrado: %v", fileName, err)
 	}
 
-	// Leer el inodo del archivo
+	//leer el inodo del archivo
 	inodePosition := superblock.S_inode_start + (inodeIndex * superblock.S_inode_s)
 	file.Seek(inodePosition, 0)
 	var fileInode structs.Inodos
@@ -73,7 +73,7 @@ func WriteFileContent(mounted *MountedPartition, fileName, newContent string) er
 		return fmt.Errorf("error al leer el inodo de '%s': %v", fileName, err)
 	}
 
-	// Escribir contenido multi-bloque
+	//escribir contenido multi bloque
 	err = writeFileContentMultiBlock(file, superblock, &fileInode, newContent, inodePosition)
 	if err != nil {
 		return fmt.Errorf("error al escribir '%s': %v", fileName, err)
@@ -90,15 +90,15 @@ func WriteUsersFileContent(mounted *MountedPartition, newContent string) error {
 	return WriteFileContent(mounted, "users.txt", newContent)
 }
 
-// Obtener partición y superbloque
+// obtener particion y superbloque
 func getPartitionAndSuperblock(file *os.File, mounted *MountedPartition) (*structs.Partition, *structs.SuperBloque, error) {
-	// Leer el MBR
+	//leer el mbr
 	var mbr structs.MBR
 	if err := binary.Read(file, binary.LittleEndian, &mbr); err != nil {
 		return nil, nil, fmt.Errorf("error al leer el MBR: %v", err)
 	}
 
-	// Encontrar la partición específica
+	//encontrar la particion especifica
 	var partition *structs.Partition
 	for _, p := range mbr.Mbr_partitions {
 		if p.Part_status != '0' {
@@ -121,10 +121,10 @@ func getPartitionAndSuperblock(file *os.File, mounted *MountedPartition) (*struc
 	}
 
 	if partition == nil {
-		return nil, nil, fmt.Errorf("no se pudo encontrar la partición '%s'", mounted.Name)
+		return nil, nil, fmt.Errorf("no se pudo encontrar la particion '%s'", mounted.Name)
 	}
 
-	// Leer el superbloque
+	//leer el superbloque
 	file.Seek(partition.Part_start, 0)
 	var superblock structs.SuperBloque
 	if err := binary.Read(file, binary.LittleEndian, &superblock); err != nil {
@@ -134,13 +134,13 @@ func getPartitionAndSuperblock(file *os.File, mounted *MountedPartition) (*struc
 	return partition, &superblock, nil
 }
 
-// Buscar archivo en el directorio raíz
+// buscar archivo en el directorio raiz
 func findFileInRootDirectory(file *os.File, superblock *structs.SuperBloque, fileName string) (int64, error) {
 	file.Seek(superblock.S_block_start, 0)
 
 	var rootBlock structs.BloqueCarpeta
 	if err := binary.Read(file, binary.LittleEndian, &rootBlock); err != nil {
-		return -1, fmt.Errorf("error al leer el directorio raíz: %v", err)
+		return -1, fmt.Errorf("error al leer el directorio raiz: %v", err)
 	}
 
 	for i := 0; i < 4; i++ {
@@ -157,7 +157,7 @@ func findFileInRootDirectory(file *os.File, superblock *structs.SuperBloque, fil
 	return -1, fmt.Errorf("archivo no encontrado")
 }
 
-// Leer contenido de archivo multi-bloque
+// leer contenido de archivo multi bloque
 func readFileContentMultiBlock(file *os.File, superblock *structs.SuperBloque, fileInode *structs.Inodos) (string, error) {
 	var content strings.Builder
 
@@ -202,20 +202,20 @@ func readFileContentMultiBlock(file *os.File, superblock *structs.SuperBloque, f
 	return result, nil
 }
 
-// Escribir contenido de archivo multi-bloque
+// escribir contenido de archivo multi bloque
 func writeFileContentMultiBlock(file *os.File, superblock *structs.SuperBloque, fileInode *structs.Inodos, newContent string, inodePosition int64) error {
 	blockSize := len(structs.BloqueArchivo{}.BContent)
 	contentBytes := []byte(newContent)
 	blocksNeeded := (len(contentBytes) + blockSize - 1) / blockSize
 
 	if blocksNeeded > 15 {
-		return fmt.Errorf("el archivo es demasiado grande: necesita %d bloques, máximo 15", blocksNeeded)
+		return fmt.Errorf("el archivo es demasiado grande")
 	}
 
-	// Actualizar el tamaño del archivo
+	//actualizar el tamano del archivo
 	fileInode.I_s = int64(len(newContent))
 
-	// Contar bloques actuales
+	//contar bloques actuales
 	currentBlocks := 0
 	for i := 0; i < 15; i++ {
 		if fileInode.I_block[i] != -1 {
@@ -225,7 +225,7 @@ func writeFileContentMultiBlock(file *os.File, superblock *structs.SuperBloque, 
 		}
 	}
 
-	// Asignar bloques adicionales si es necesario
+	//asignar bloques adicionales si es necesario
 	if blocksNeeded > currentBlocks {
 		for i := currentBlocks; i < blocksNeeded; i++ {
 			newBlockIndex, err := findFreeBlock(file, superblock)
@@ -237,20 +237,19 @@ func writeFileContentMultiBlock(file *os.File, superblock *structs.SuperBloque, 
 			if err := markBlockAsUsed(file, superblock, newBlockIndex); err != nil {
 				return fmt.Errorf("error al marcar bloque como usado: %v", err)
 			}
-
 		}
 	}
 
-	// Escribir el inodo actualizado
+	//escribir el inodo actualizado
 	file.Seek(inodePosition, 0)
 	if err := binary.Write(file, binary.LittleEndian, fileInode); err != nil {
 		return fmt.Errorf("error al escribir el inodo actualizado: %v", err)
 	}
 
-	// Escribir contenido en múltiples bloques
+	//escribir contenido en multiples bloques
 	for blockIndex := 0; blockIndex < blocksNeeded; blockIndex++ {
 		if fileInode.I_block[blockIndex] == -1 {
-			return fmt.Errorf("bloque %d no está asignado", blockIndex)
+			return fmt.Errorf("bloque %d no esta asignado", blockIndex)
 		}
 
 		startByte := blockIndex * blockSize
@@ -274,13 +273,12 @@ func writeFileContentMultiBlock(file *os.File, superblock *structs.SuperBloque, 
 		if err := binary.Write(file, binary.LittleEndian, &fileBlock); err != nil {
 			return fmt.Errorf("error al escribir el bloque %d: %v", blockIndex, err)
 		}
-
 	}
 
 	return nil
 }
 
-// Buscar bloque libre
+// buscar bloque libre
 func findFreeBlock(file *os.File, superblock *structs.SuperBloque) (int64, error) {
 	file.Seek(superblock.S_bm_block_start, 0)
 	bitmap := make([]byte, superblock.S_blocks_count)
@@ -297,7 +295,7 @@ func findFreeBlock(file *os.File, superblock *structs.SuperBloque) (int64, error
 	return -1, fmt.Errorf("no hay bloques libres disponibles")
 }
 
-// Marcar bloque como usado
+// marcar bloque como usado
 func markBlockAsUsed(file *os.File, superblock *structs.SuperBloque, blockIndex int64) error {
 	bitmapPosition := superblock.S_bm_block_start + blockIndex
 	file.Seek(bitmapPosition, 0)
@@ -309,7 +307,7 @@ func markBlockAsUsed(file *os.File, superblock *structs.SuperBloque, blockIndex 
 	return nil
 }
 
-// Buscar inodo libre
+// buscar inodo libre
 func findFreeInode(file *os.File, superblock *structs.SuperBloque) (int64, error) {
 	file.Seek(superblock.S_bm_inode_start, 0)
 	bitmap := make([]byte, superblock.S_inodes_count)
@@ -326,7 +324,7 @@ func findFreeInode(file *os.File, superblock *structs.SuperBloque) (int64, error
 	return -1, fmt.Errorf("no hay inodos libres disponibles")
 }
 
-// Marcar inodo como usado
+// marcar inodo como usado
 func markInodeAsUsed(file *os.File, superblock *structs.SuperBloque, inodeIndex int64) error {
 	bitmapPosition := superblock.S_bm_inode_start + inodeIndex
 	file.Seek(bitmapPosition, 0)
@@ -338,7 +336,7 @@ func markInodeAsUsed(file *os.File, superblock *structs.SuperBloque, inodeIndex 
 	return nil
 }
 
-// Marcar inodo como libre
+// marcar inodo como libre
 func markInodeAsFree(file *os.File, superblock *structs.SuperBloque, inodeIndex int64) error {
 	bitmapPosition := superblock.S_bm_inode_start + inodeIndex
 	file.Seek(bitmapPosition, 0)
@@ -350,7 +348,7 @@ func markInodeAsFree(file *os.File, superblock *structs.SuperBloque, inodeIndex 
 	return nil
 }
 
-// Marcar bloque como libre
+// marcar bloque como libre
 func markBlockAsFree(file *os.File, superblock *structs.SuperBloque, blockIndex int64) error {
 	bitmapPosition := superblock.S_bm_block_start + blockIndex
 	file.Seek(bitmapPosition, 0)
@@ -362,7 +360,7 @@ func markBlockAsFree(file *os.File, superblock *structs.SuperBloque, blockIndex 
 	return nil
 }
 
-// Estructura para parsear rutas
+// estructura para parsear rutas
 type ParsedPath struct {
 	IsAbsolute  bool
 	Directories []string
@@ -370,30 +368,29 @@ type ParsedPath struct {
 	FullPath    string
 }
 
-// Parsear ruta del archivo con soporte para espacios en blanco
+// parsear ruta del archivo con soporte para espacios en blanco
 func parsePath(path string) *ParsedPath {
-	// Limpiar la ruta
 	path = strings.TrimSpace(path)
 	if path == "" {
 		return nil
 	}
 
-	// Manejar comillas para espacios en blanco
+	//manejar comillas para espacios en blanco
 	originalPath := path
 
-	// Si la ruta está entre comillas, removerlas
+	//si la ruta esta entre comillas removerlas
 	if (strings.HasPrefix(path, "\"") && strings.HasSuffix(path, "\"")) ||
 		(strings.HasPrefix(path, "'") && strings.HasSuffix(path, "'")) {
 		path = path[1 : len(path)-1]
 	}
 
-	// Verificar si es absoluta
+	//verificar si es absoluta
 	isAbsolute := strings.HasPrefix(path, "/")
 
-	// Separar por "/" manteniendo espacios
+	//separar por slash manteniendo espacios
 	parts := strings.Split(path, "/")
 
-	// Filtrar partes vacías pero mantener espacios
+	//filtrar partes vacias pero mantener espacios
 	var cleanParts []string
 	for _, part := range parts {
 		if part != "" {
@@ -410,7 +407,7 @@ func parsePath(path string) *ParsedPath {
 		}
 	}
 
-	// Último elemento es el nombre del archivo
+	//ultimo elemento es el nombre del archivo
 	fileName := cleanParts[len(cleanParts)-1]
 	directories := cleanParts[:len(cleanParts)-1]
 
@@ -422,9 +419,8 @@ func parsePath(path string) *ParsedPath {
 	}
 }
 
-// Buscar inodo en un directorio (función global)
+// buscar inodo en un directorio
 func findInodeInDirectory(file *os.File, superblock *structs.SuperBloque, dirInodeIndex int64, itemName string) (int64, error) {
-	// Leer el inodo del directorio
 	inodePosition := superblock.S_inode_start + (dirInodeIndex * superblock.S_inode_s)
 	file.Seek(inodePosition, 0)
 	var dirInode structs.Inodos
@@ -432,12 +428,12 @@ func findInodeInDirectory(file *os.File, superblock *structs.SuperBloque, dirIno
 		return -1, fmt.Errorf("error al leer inodo del directorio: %v", err)
 	}
 
-	// Verificar que es un directorio
+	//verificar que es un directorio
 	if dirInode.I_type != '0' {
 		return -1, fmt.Errorf("no es un directorio")
 	}
 
-	// Buscar en todos los bloques del directorio
+	//buscar en todos los bloques del directorio
 	for i := 0; i < 15; i++ {
 		if dirInode.I_block[i] == -1 {
 			break
@@ -451,13 +447,13 @@ func findInodeInDirectory(file *os.File, superblock *structs.SuperBloque, dirIno
 			return -1, fmt.Errorf("error al leer bloque del directorio: %v", err)
 		}
 
-		// Buscar en las entradas del bloque
+		//buscar en las entradas del bloque
 		for j := 0; j < 4; j++ {
 			if dirBlock.BContent[j].BInodo != -1 {
 				entryName := string(dirBlock.BContent[j].BName[:])
 				entryName = strings.Trim(entryName, "\x00")
 
-				// Comparación exacta incluyendo espacios
+				//comparacion exacta incluyendo espacios
 				if entryName == itemName {
 					return dirBlock.BContent[j].BInodo, nil
 				}

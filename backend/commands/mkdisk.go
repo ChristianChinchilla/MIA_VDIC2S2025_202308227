@@ -49,11 +49,11 @@ func ExecuteMkdisk(size int, unit string, fit string) {
 		return
 	}
 
-	// Generar nombre automático del disco
+	//generar nombre automatico del disco
 	diskName := generateNextDiskName()
 	path := filepath.Join(DisksDirectory, diskName)
 
-	// Crear directorio si no existe
+	//crear directorio si no existe
 	if err := os.MkdirAll(DisksDirectory, 0755); err != nil {
 		fmt.Printf("Error al crear el directorio: %v\n", err)
 		return
@@ -98,12 +98,12 @@ func ExecuteMkdisk(size int, unit string, fit string) {
 }
 
 func generateNextDiskName() string {
-	// Buscar la siguiente letra disponible
+	//buscar la siguiente letra disponible
 	for letter := 'A'; letter <= 'Z'; letter++ {
 		diskName := fmt.Sprintf("VDIC-%c.mia", letter)
 		fullPath := filepath.Join(DisksDirectory, diskName)
 
-		// Si el archivo no existe, usar este nombre
+		//si el archivo no existe usar este nombre
 		if _, err := os.Stat(fullPath); os.IsNotExist(err) {
 			return diskName
 		}

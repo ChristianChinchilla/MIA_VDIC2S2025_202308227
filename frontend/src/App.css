@@ -1,4 +1,4 @@
-/* Variables CSS para colores y animaciones */
+/*variables CSS para colores y animaciones*/
 :root {
   --primary-bg: #0a0a0f;
   --secondary-bg: #1a1a2e;
@@ -21,13 +21,13 @@
   --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
-  /* ← AGREGAR: Variables de fuentes */
+  /*fuentes */
   --font-display: 'Poppins', 'Inter', sans-serif;
   --font-body: 'Inter', 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
 }
 
-/* Reset y estilos base */
+
 * {
   margin: 0;
   padding: 0;
@@ -44,7 +44,7 @@ body {
   letter-spacing: -0.01em;
 }
 
-/* Efecto de fondo animado */
+/*efecto de fondo animado*/
 body::before {
   content: '';
   position: fixed;
@@ -67,7 +67,7 @@ body::before {
   75% { transform: translateX(-1%) translateY(1%); }
 }
 
-/* Layout principal */
+/*layout principal*/
 .app {
   min-height: 100vh;
   display: flex;
@@ -80,7 +80,7 @@ body::before {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Header */
+/*header*/
 .header {
   background: var(--panel-bg);
   backdrop-filter: blur(20px);
@@ -185,7 +185,7 @@ body::before {
   50% { transform: scale(1.3); }
 }
 
-/* Main content */
+/*main content*/
 .main-content {
   flex: 1;
   display: grid;
@@ -199,7 +199,7 @@ body::before {
 }
 
 
-/* Panels */
+/*panels*/
 .panel {
   background: var(--panel-bg);
   border: 1px solid var(--border-color);
@@ -262,7 +262,7 @@ body::before {
   gap: 0.5rem;
 }
 
-/* Commands Panel */
+/*commands panel*/
 .commands-panel {
   animation-delay: 0.1s;
 }
@@ -407,7 +407,7 @@ body::before {
   border-top: 1px solid var(--border-color);
 }
 
-/* Output Panel */
+/*output panel*/
 .output-panel {
   animation-delay: 0.2s;
 }
@@ -552,7 +552,7 @@ body::before {
   line-height: 1.5;
 }
 
-/* Buttons */
+/*buttons*/
 .btn {
   display: inline-flex;
   align-items: center;
@@ -648,7 +648,7 @@ body::before {
   transform: scale(1.1);
 }
 
-/* Footer */
+/*footer*/
 .footer {
   background: var(--panel-bg);
   border-top: 1px solid var(--border-color);
@@ -684,7 +684,7 @@ body::before {
   letter-spacing: 0;
 }
 
-/* Responsive Design */
+/*responsive design*/
 @media (max-width: 1024px) {
   .main-content {
     grid-template-columns: 1fr;
@@ -747,7 +747,7 @@ body::before {
   }
 }
 
-/* Animaciones de entrada secuencial */
+/*animaciones de entrada secuencial*/
 .commands-panel {
   animation: slideInLeft 0.6s ease-out;
 }
@@ -766,19 +766,19 @@ body::before {
   to { transform: translateX(0); opacity: 1; }
 }
 
-/* Mejoras de accesibilidad */
+/*mejoras de accesibilidad*/
 .btn:focus,
 .commands-textarea:focus {
   outline: 2px solid var(--accent-blue);
   outline-offset: 2px;
 }
 
-/* Efectos adicionales de hover */
+
 .panel-title:hover .panel-icon {
   transform: scale(1.2) rotate(10deg);
 }
 
-/* Animación de carga */
+
 @keyframes shimmer {
   0% { background-position: -200px 0; }
   100% { background-position: calc(200px + 100%) 0; }
@@ -790,7 +790,7 @@ body::before {
   animation: shimmer 2s infinite;
 }
 
-/* Estados de texto */
+
 .status-text {
   font-family: var(--font-body);
   font-weight: 500; 
@@ -825,7 +825,7 @@ body::before {
   letter-spacing: 0;
 }
 
-/* Estados adicionales para el indicador de conexión */
+ 
 .status-dot.error {
   background: var(--accent-red);
   box-shadow: 0 0 10px var(--accent-red);
@@ -837,14 +837,14 @@ body::before {
   50% { opacity: 0.5; }
 }
 
-/* Botón pequeño para reconectar */
+ 
 .btn-sm {
   padding: 0.4rem 0.8rem;
   font-size: 0.8rem;
   margin-left: 0.5rem;
 }
 
-/* Mejorar la visualización del estado de conexión */
+ 
 .status-indicator {
   display: flex;
   align-items: center;
