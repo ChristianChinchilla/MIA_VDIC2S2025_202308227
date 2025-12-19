@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -20,25 +21,27 @@ type MountedPartition struct {
 var mountedPartitions []MountedPartition
 var diskCounters = make(map[string]int)
 
-func ExecuteMount(path string, name string) {
+func ExecuteMount(diskName string, name string) {
 	if name == "" {
 		fmt.Println("Error: el parámetro -name es obligatorio para mount.")
 		return
 	}
-
-	//asegurar que el archivo tiene extension .mia
-	if !strings.HasSuffix(strings.ToLower(path), ".mia") {
-		path += ".mia"
+	//asegurar que el nombre tiene extension .mia
+	if !strings.HasSuffix(strings.ToLower(diskName), ".mia") {
+		diskName += ".mia"
 	}
 
+	//buscar el disco dentro del directorio de discos
+	fullPath := filepath.Join(DisksDirectory, diskName)
+
 	//verificar que el archivo existe
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		fmt.Printf("Error: El archivo '%s' no existe.\n", path)
+	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+		fmt.Printf("Error: El disco '%s' no existe en el directorio de discos.\n", diskName)
 		return
 	}
 
 	//abrir el archivo del disco en modo lectura escritura
-	file, err := os.OpenFile(path, os.O_RDWR, 0644)
+	file, err := os.OpenFile(fullPath, os.O_RDWR, 0644)
 	if err != nil {
 		fmt.Printf("Error al abrir el archivo: %v\n", err)
 		return
@@ -83,20 +86,21 @@ func ExecuteMount(path string, name string) {
 	}
 
 	if foundPartition == nil {
-		fmt.Printf("Error: No se encontró la partición '%s' en el disco '%s'.\n", name, path)
+		fmt.Printf("Error: No se encontró la partición '%s' en el disco '%s'.\n", name, diskName)
 		return
 	}
 
 	//verificar si la particion ya esta montada
 	for _, mounted := range mountedPartitions {
-		if mounted.Path == path && mounted.Name == name {
-			fmt.Printf("Error: La partición '%s' del disco '%s' ya está montada con ID '%s'.\n", name, path, mounted.ID)
+		if mounted.Path == fullPath && mounted.Name == name {
+			fmt.Printf("Error: La partición '%s' del disco '%s' ya está montada con ID '%s'.\n", name, diskName, mounted.ID)
 			return
 		}
 	}
 
 	//generar el id y correlativo
-	id := generatePartitionID(path)
+	// generar ID usando el nombre del disco (sin ruta)
+	id := generatePartitionID(diskName)
 	correlativo := generateCorrelativo()
 
 	//actualizar la particion en el mbr del disco
@@ -113,7 +117,7 @@ func ExecuteMount(path string, name string) {
 	//crear la entrada de particion montada
 	mountedPartition := MountedPartition{
 		ID:   id,
-		Path: path,
+		Path: fullPath,
 		Name: name,
 		Size: foundPartition.Part_s,
 	}
@@ -123,7 +127,7 @@ func ExecuteMount(path string, name string) {
 
 	//mostrar mensaje de exito
 	fmt.Printf("Partición '%s' montada exitosamente.\n", name)
-	fmt.Printf("   Disco: %s\n", path)
+	fmt.Printf("   Disco: %s\n", diskName)
 	fmt.Printf("   ID asignado: %s\n", id)
 	fmt.Printf("   Correlativo: %d\n", correlativo)
 	fmt.Printf("   Tamaño: %d bytes\n", foundPartition.Part_s)

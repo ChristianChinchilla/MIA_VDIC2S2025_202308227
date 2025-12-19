@@ -32,7 +32,7 @@ const App: React.FC = () => {
     checkBackendConnection();
   }, []);
 
-  
+
   useEffect(() => {
     if (outputRef.current) {
       outputRef.current.scrollTop = outputRef.current.scrollHeight;

@@ -4663,7 +4663,7 @@ func generateLsHTML(file *os.File, superblock structs.SuperBloque, dirPath, part
 <body>
     <div class="container">
         <div class="header">
-            <h1>📋 Reporte LS</h1>
+            <h1>Reporte LS</h1>
             <p class="subtitle">Listado de Archivos y Directorios - ExtreamFS </p>
         </div>`)
 
@@ -4778,9 +4778,9 @@ func generateLsHTML(file *os.File, superblock structs.SuperBloque, dirPath, part
 	//Footer
 	html.WriteString(fmt.Sprintf(`
         <div class="footer">
-            <p>📋 Reporte generado por <strong>ExtreamFS </strong></p>
-            <p>🕒 %s | 📦 Partición: <strong>%s</strong></p>
-            <p>📁 Directorio: <strong>%s</strong> | 📊 Total de elementos: <strong>%d</strong></p>
+            <p> Reporte generado por <strong>ExtreamFS </strong></p>
+            <p> %s | Partición: <strong>%s</strong></p>
+            <p> Directorio: <strong>%s</strong> | Total de elementos: <strong>%d</strong></p>
         </div>
     </div>
     

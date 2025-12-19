@@ -237,24 +237,40 @@ func executeCommand(command string, args []string, fullLine string) error {
 			return fmt.Errorf("el parámetro -size es obligatorio y debe ser positivo")
 		}
 
-		commands.ExecuteFdisk(*size, *unit, *diskName, *tipo, *fit, *name)
+		// Normalizar el parámetro tipo para que ExecuteFdisk reciba 'P', 'E' o 'L'
+		tipoVal := strings.ToUpper(strings.TrimSpace(*tipo))
+		switch tipoVal {
+		case "PRIMARIA", "PRIMARIO", "P":
+			tipoVal = "P"
+		case "EXTENDIDA", "EXTENDIDO", "E":
+			tipoVal = "E"
+		case "LOGICA", "LÓGICA", "LOGICO", "L":
+			tipoVal = "L"
+		default:
+			return fmt.Errorf("el parámetro -type no es válido: %s. Use 'P', 'E' o 'L'", *tipo)
+		}
+
+		// Normalizar fit a forma esperada (FF/BF/WF)
+		fitVal := strings.ToUpper(strings.TrimSpace(*fit))
+
+		commands.ExecuteFdisk(*size, *unit, *diskName, tipoVal, fitVal, *name)
 
 	case "mount":
 		mountCmd := flag.NewFlagSet("mount", flag.ContinueOnError)
-		path := mountCmd.String("path", "", "Ruta del disco")
+		diskName := mountCmd.String("diskName", "", "Ruta del disco")
 		name := mountCmd.String("name", "", "Nombre de la partición")
 
 		if err := mountCmd.Parse(args); err != nil {
 			return err
 		}
-		if *path == "" {
-			return fmt.Errorf("el parámetro -path es obligatorio para mount")
+		if *diskName == "" {
+			return fmt.Errorf("el parámetro -diskName es obligatorio para mount")
 		}
 		if *name == "" {
 			return fmt.Errorf("el parámetro -name es obligatorio para mount")
 		}
 
-		commands.ExecuteMount(*path, *name)
+		commands.ExecuteMount(*diskName, *name)
 
 	case "mounted":
 		commands.ExecuteMounted()

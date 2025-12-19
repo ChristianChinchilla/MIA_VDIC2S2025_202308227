@@ -89,7 +89,7 @@ func ExecuteFdisk(size int64, unit string, diskName string, tipo string, fit str
 	//convertir tamaño segun la unidad
 	sizeInBytes := convertSize(size, unit)
 
-	if err := validatePartitionName(name, &mbr); err != nil {
+	if err := validatePartitionName(name, &mbr, file); err != nil {
 		fmt.Printf("Error: %v\n", err)
 		return
 	}
@@ -191,15 +191,46 @@ func ExecuteFdisk(size int64, unit string, diskName string, tipo string, fit str
 }
 
 // validar nombre duplicado
-func validatePartitionName(name string, mbr *structs.MBR) error {
+func validatePartitionName(name string, mbr *structs.MBR, file *os.File) error {
+	// Verificar nombres en particiones primarias/extendidas (MBR)
 	for _, partition := range mbr.Mbr_partitions {
 		if partition.Part_status != '0' {
-			partitionName := strings.TrimSpace(string(partition.Part_name[:]))
+			partitionName := strings.TrimSpace(strings.TrimRight(string(partition.Part_name[:]), "\x00"))
 			if partitionName == name {
 				return fmt.Errorf("ya existe una partición con el nombre '%s'", name)
 			}
 		}
 	}
+
+	// Verificar nombres en particiones lógicas (EBR) dentro de la(s) partición(es) extendida(s)
+	for _, partition := range mbr.Mbr_partitions {
+		if partition.Part_status != '0' && (partition.Part_type == 'E' || partition.Part_type == 'e') {
+			// recorrer lista de EBRs
+			var pos int64 = partition.Part_start
+			for pos >= 0 {
+				if _, err := file.Seek(pos, 0); err != nil {
+					return fmt.Errorf("error al buscar EBR en disco: %v", err)
+				}
+
+				var ebr structs.EBR
+				if err := binary.Read(file, binary.LittleEndian, &ebr); err != nil {
+					return fmt.Errorf("error al leer EBR: %v", err)
+				}
+
+				ebrName := strings.TrimSpace(strings.TrimRight(string(ebr.PartName[:]), "\x00"))
+				if ebrName == name {
+					return fmt.Errorf("ya existe una partición con el nombre '%s'", name)
+				}
+
+				// avanzar al siguiente EBR en la lista; PartNext == -1 indica fin
+				if ebr.PartNext == -1 {
+					break
+				}
+				pos = ebr.PartNext
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -430,9 +461,10 @@ func calculateFirstFit(mbr *structs.MBR, sizeNeeded int64) int64 {
 func handleLogicalPartition(mbr *structs.MBR, sizeInBytes int64, fit string, name string, file *os.File) (int64, error) {
 
 	var extendedPartition *structs.Partition
-	for _, partition := range mbr.Mbr_partitions {
-		if partition.Part_status != '0' && partition.Part_type == 'E' {
-			extendedPartition = &partition
+	for i := range mbr.Mbr_partitions {
+		part := &mbr.Mbr_partitions[i]
+		if part.Part_status != '0' && part.Part_type == 'E' {
+			extendedPartition = part
 			break
 		}
 	}
@@ -441,21 +473,101 @@ func handleLogicalPartition(mbr *structs.MBR, sizeInBytes int64, fit string, nam
 		return 0, fmt.Errorf("no se encontró partición extendida")
 	}
 
-	ebrPosition := extendedPartition.Part_start + 1024
+	// antes de crear, verificar nombres duplicados en la lista de EBRs
+	// recorrer cadena de EBRs desde el inicio de la partición extendida
+	pos := extendedPartition.Part_start
+	for pos >= 0 {
+		if _, err := file.Seek(pos, 0); err != nil {
+			return 0, fmt.Errorf("error al buscar EBR en disco: %v", err)
+		}
 
-	ebr := structs.EBR{
-		PartMount: 0,
+		var existing structs.EBR
+		if err := binary.Read(file, binary.LittleEndian, &existing); err != nil {
+			break
+		}
+
+		// solo comparar si el EBR está en uso
+		if existing.PartMount != 0 {
+			existingName := strings.TrimSpace(strings.TrimRight(string(existing.PartName[:]), "\x00"))
+			if existingName == name {
+				return 0, fmt.Errorf("ya existe una partición con el nombre '%s'", name)
+			}
+		}
+
+		if existing.PartNext == -1 {
+			break
+		}
+		pos = existing.PartNext
+	}
+
+	// si no existe duplicado, recorrer hasta el último EBR para anexar
+	pos = extendedPartition.Part_start
+	var lastPos int64 = -1
+	var lastEBR structs.EBR
+
+	for {
+		if _, err := file.Seek(pos, 0); err != nil {
+			return 0, fmt.Errorf("error al buscar EBR en disco: %v", err)
+		}
+
+		var cur structs.EBR
+		if err := binary.Read(file, binary.LittleEndian, &cur); err != nil {
+			return 0, fmt.Errorf("error leyendo EBR existente: %v", err)
+		}
+
+		// comparar nombre si EBR en uso
+		if cur.PartMount != 0 {
+			curName := strings.TrimSpace(strings.TrimRight(string(cur.PartName[:]), "\x00"))
+			if curName == name {
+				return 0, fmt.Errorf("ya existe una partición con el nombre '%s'", name)
+			}
+		}
+
+		lastPos = pos
+		lastEBR = cur
+
+		if cur.PartNext == -1 {
+			break
+		}
+		pos = cur.PartNext
+	}
+
+	// calcular posición para el nuevo EBR
+	var ebrPosition int64
+	if lastPos == extendedPartition.Part_start {
+		// primer EBR (cabecera de extendida), colocar primer lógica justo después
+		ebrPosition = extendedPartition.Part_start + 1024
+	} else {
+		// anexar después del último lógico
+		ebrPosition = lastEBR.PartStart + lastEBR.PartS
+	}
+
+	// actualizar PartNext del último EBR para apuntar al nuevo
+	if lastPos >= 0 {
+		lastEBR.PartNext = ebrPosition
+		if _, err := file.Seek(lastPos, 0); err != nil {
+			return 0, fmt.Errorf("error al posicionar EBR anterior: %v", err)
+		}
+		if err := binary.Write(file, binary.LittleEndian, &lastEBR); err != nil {
+			return 0, fmt.Errorf("error al actualizar EBR anterior: %v", err)
+		}
+	}
+
+	// crear y escribir nuevo EBR
+	newEBR := structs.EBR{
+		PartMount: 1,
 		PartFit:   fit[0],
 		PartStart: ebrPosition,
 		PartS:     sizeInBytes,
 		PartNext:  -1,
 	}
-	copy(ebr.PartName[:], []byte(name))
+	copy(newEBR.PartName[:], []byte(name))
 
-	//escribir EBR
-	file.Seek(ebrPosition, 0)
-	if err := binary.Write(file, binary.LittleEndian, &ebr); err != nil {
-		return 0, fmt.Errorf("error escribiendo EBR: %v", err)
+	if _, err := file.Seek(ebrPosition, 0); err != nil {
+		return 0, fmt.Errorf("error al posicionar nuevo EBR: %v", err)
+	}
+	if err := binary.Write(file, binary.LittleEndian, &newEBR); err != nil {
+		return 0, fmt.Errorf("error escribiendo nuevo EBR: %v", err)
 	}
 
 	return ebrPosition, nil
